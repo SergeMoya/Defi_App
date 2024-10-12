@@ -1,7 +1,35 @@
 import { Response } from 'express';
 import Portfolio, { IPortfolio, IAsset } from '../models/Portfolio_model';
-import { getPriceData } from '../services/priceFeedService';
+import { getPriceData, PriceData } from '../services/priceFeedService';
 import { UserRequest } from '../types';
+
+const createSamplePortfolio = (priceData: PriceData): IAsset[] => {
+  return Object.values(priceData)
+    .slice(0, 5)
+    .map(coin => ({
+      name: coin.name,
+      symbol: coin.symbol,
+      amount: parseFloat((Math.random() * 10).toFixed(4)), // Random amount between 0 and 10
+      value: 0,
+      change24h: 0,
+      image: coin.image,
+    }));
+};
+
+const updateAssetPrices = (assets: IAsset[], priceData: PriceData): IAsset[] => {
+  return assets.map(asset => {
+    const coinData = priceData[asset.symbol.toLowerCase()];
+    if (coinData) {
+      return {
+        ...asset,
+        value: asset.amount * coinData.usd,
+        change24h: coinData.usd_24h_change,
+        image: coinData.image,
+      };
+    }
+    return asset;
+  });
+};
 
 export const getPortfolio = async (req: UserRequest, res: Response) => {
   try {
@@ -15,19 +43,39 @@ export const getPortfolio = async (req: UserRequest, res: Response) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    const priceData = await getPriceData();
+    console.log('Fetched price data:', priceData);
+
     let portfolio = await Portfolio.findOne({ userId });
     console.log('Found portfolio:', portfolio);
 
     if (!portfolio) {
       console.log('Creating new portfolio for userId:', userId);
+      const sampleAssets = createSamplePortfolio(priceData);
+      const updatedAssets = updateAssetPrices(sampleAssets, priceData);
+      const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
+      const totalChange24h = updatedAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0);
+
       portfolio = new Portfolio({
         userId,
-        assets: [],
-        totalValue: 0,
-        totalChange24h: 0,
+        assets: updatedAssets,
+        totalValue,
+        totalChange24h,
       });
       await portfolio.save();
-      console.log('New portfolio created:', portfolio);
+      console.log('New portfolio created with sample assets:', portfolio);
+    } else {
+      console.log('Updating existing portfolio with current prices');
+      const updatedAssets = updateAssetPrices(portfolio.assets, priceData);
+      const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
+      const totalChange24h = updatedAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0);
+
+      portfolio.assets = updatedAssets;
+      portfolio.totalValue = totalValue;
+      portfolio.totalChange24h = totalChange24h;
+      portfolio.lastUpdated = new Date();
+      await portfolio.save();
+      console.log('Portfolio updated with current prices:', portfolio);
     }
 
     res.json(portfolio);

@@ -6,6 +6,7 @@ import portfolioRoutes from './routes/portfolio_route';
 import priceFeedRoutes from './routes/priceFeed_route';
 import transactionRoutes from './routes/transaction_route';
 import authRoutes from './routes/auth_route';
+import { getPriceData } from './services/priceFeedService';
 
 const app = express();
 
@@ -42,6 +43,23 @@ app.get('/', (req, res) => {
   res.send('DeFi Dashboard API');
 });
 
+// New test endpoint for price data
+app.get('/api/test-price-data', async (req, res) => {
+  try {
+    console.log('Fetching price data...');
+    const priceData = await getPriceData();
+    console.log('Price data fetched:', priceData);
+    res.json(priceData);
+  } catch (error: unknown) {
+    console.error('Error fetching price data:', error);
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error fetching price data', error: error.message });
+    } else {
+      res.status(500).json({ message: 'An unknown error occurred while fetching price data' });
+    }
+  }
+});
+
 // Start the server
 const startServer = async () => {
   try {
@@ -49,8 +67,11 @@ const startServer = async () => {
     app.listen(config.PORT, () => {
       console.log(`Server is running on port ${config.PORT}`);
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to start the server:', error);
+    if (error instanceof Error) {
+      console.error(error.message);
+    }
     process.exit(1);
   }
 };
