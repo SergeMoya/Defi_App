@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon } from '@heroicons/react/24/solid';
+import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
 import { Transition } from '@headlessui/react';
 import logoImage from '../assets/acare_logo.png';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  isAuthenticated: boolean;
+  onLogout: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -61,6 +66,15 @@ const Header: React.FC = () => {
                 <MoonIcon className="h-6 w-6" />
               )}
             </button>
+            {isAuthenticated && (
+              <button
+                onClick={onLogout}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
+                aria-label="Logout"
+              >
+                <ArrowRightOnRectangleIcon className="h-6 w-6" />
+              </button>
+            )}
             <button
               className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
               aria-label="User profile"
