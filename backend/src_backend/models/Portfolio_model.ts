@@ -1,28 +1,34 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAsset {
+  name: string;
   symbol: string;
   amount: number;
   value: number;
+  change24h: number;
 }
 
 export interface IPortfolio extends Document {
-  user: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   assets: IAsset[];
   totalValue: number;
+  totalChange24h: number;
   lastUpdated: Date;
 }
 
 const AssetSchema: Schema = new Schema({
+  name: { type: String, required: true },
   symbol: { type: String, required: true },
   amount: { type: Number, required: true },
   value: { type: Number, required: true },
+  change24h: { type: Number, required: true },
 });
 
 const PortfolioSchema: Schema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   assets: [AssetSchema],
   totalValue: { type: Number, required: true },
+  totalChange24h: { type: Number, required: true },
   lastUpdated: { type: Date, default: Date.now },
 });
 
