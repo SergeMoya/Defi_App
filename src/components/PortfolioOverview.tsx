@@ -2,10 +2,18 @@ import React, { useState } from 'react';
 import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '../utils/formatters';
+import { motion } from 'framer-motion';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
-const initialData = [
+interface AssetData {
+  name: string;
+  value: number;
+  amount: number;
+  change24h: number;
+}
+
+const initialData: AssetData[] = [
   { name: 'ETH', value: 5000, amount: 2.5, change24h: 5.2 },
   { name: 'BTC', value: 4000, amount: 0.1, change24h: -2.1 },
   { name: 'USDT', value: 2000, amount: 2000, change24h: 0.1 },
@@ -13,13 +21,22 @@ const initialData = [
 ];
 
 const PortfolioOverview: React.FC = () => {
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState<AssetData[]>(initialData);
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
+
   const totalValue = data.reduce((sum, item) => sum + item.value, 0);
   const totalChange24h = data.reduce((sum, item) => sum + (item.value * item.change24h) / 100, 0);
   const totalChangePercentage = (totalChange24h / (totalValue - totalChange24h)) * 100;
 
+  const handlePieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
+  const handlePieLeave = () => {
+    setActiveIndex(-1);
+  };
+
   const handlePieClick = (entry: any, index: number) => {
-    // Simulate a price change when clicking on a pie slice
     const newData = [...data];
     newData[index] = {
       ...newData[index],
@@ -44,14 +61,23 @@ const PortfolioOverview: React.FC = () => {
   };
 
   const QuickActionButton: React.FC<{ icon: React.ElementType; label: string }> = ({ icon: Icon, label }) => (
-    <button className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150"
+    >
       <Icon className="mr-2 h-5 w-5" />
       {label}
-    </button>
+    </motion.button>
   );
 
   return (
-    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg rounded-lg"
+    >
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Portfolio Overview</h3>
@@ -82,16 +108,22 @@ const PortfolioOverview: React.FC = () => {
                   fill="#8884d8"
                   paddingAngle={5}
                   dataKey="value"
+                  onMouseEnter={handlePieEnter}
+                  onMouseLeave={handlePieLeave}
                   onClick={handlePieClick}
                 >
                   {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                      opacity={activeIndex === index ? 0.8 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0].payload;
+                      const data = payload[0].payload as AssetData;
                       return (
                         <div className="bg-white dark:bg-gray-700 p-2 shadow rounded">
                           <p className="text-sm font-semibold">{data.name}</p>
@@ -114,7 +146,13 @@ const PortfolioOverview: React.FC = () => {
             <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Asset Breakdown</h4>
             <ul className="space-y-3">
               {data.map((asset, index) => (
-                <li key={asset.name} className="flex items-center justify-between">
+                <motion.li
+                  key={asset.name}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                >
                   <div className="flex items-center">
                     <div className="w-4 h-4 rounded-full mr-3" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{asset.name}</span>
@@ -126,7 +164,7 @@ const PortfolioOverview: React.FC = () => {
                       {formatPercentage(asset.change24h)} (24h)
                     </p>
                   </div>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </div>
@@ -141,13 +179,19 @@ const PortfolioOverview: React.FC = () => {
               { label: '30d Change', value: formatCurrency(totalValue * 0.25), percentage: '+25.00%' },
               { label: 'All Time', value: formatCurrency(totalValue * 2), percentage: '+200.00%' },
             ].map((item, index) => (
-              <div key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-sm"
+              >
                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
                 <p className="text-lg font-semibold text-gray-900 dark:text-white">{item.value}</p>
                 <p className={`text-sm ${item.percentage.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
                   {item.percentage}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -161,7 +205,7 @@ const PortfolioOverview: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
