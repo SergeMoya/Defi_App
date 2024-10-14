@@ -15,62 +15,49 @@ interface PriceData {
 const PriceFeeds: React.FC = () => {
   const [prices, setPrices] = useState<PriceData[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPrices = async () => {
-      // In a real application, you would fetch this data from an API
-      // For now, we'll use more detailed mock data
-      const mockData: PriceData[] = [
-        {
-          symbol: 'BTC',
-          price: 50000,
-          change24h: 2.5,
-          volume24h: 30000000000,
-          marketCap: 950000000000,
-          priceHistory: Array.from({ length: 24 }, (_, i) => ({
-            timestamp: Date.now() - (23 - i) * 3600000,
-            price: 50000 + Math.random() * 2000 - 1000,
-          })),
-        },
-        {
-          symbol: 'ETH',
-          price: 3000,
-          change24h: -1.2,
-          volume24h: 15000000000,
-          marketCap: 350000000000,
-          priceHistory: Array.from({ length: 24 }, (_, i) => ({
-            timestamp: Date.now() - (23 - i) * 3600000,
-            price: 3000 + Math.random() * 100 - 50,
-          })),
-        },
-        {
-          symbol: 'USDT',
-          price: 1,
-          change24h: 0.1,
-          volume24h: 50000000000,
-          marketCap: 80000000000,
-          priceHistory: Array.from({ length: 24 }, (_, i) => ({
-            timestamp: Date.now() - (23 - i) * 3600000,
-            price: 1 + Math.random() * 0.002 - 0.001,
-          })),
-        },
-        {
-          symbol: 'XRP',
-          price: 0.5,
-          change24h: 1.8,
-          volume24h: 2000000000,
-          marketCap: 25000000000,
-          priceHistory: Array.from({ length: 24 }, (_, i) => ({
-            timestamp: Date.now() - (23 - i) * 3600000,
-            price: 0.5 + Math.random() * 0.02 - 0.01,
-          })),
-        },
-      ];
-      setPrices(mockData);
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Get the token from localStorage
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch('http://192.168.1.123:5000/api/price-feed?count=5', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          } else {
+            throw new Error('Failed to fetch price data');
+          }
+        }
+
+        const data: PriceData[] = await response.json();
+        setPrices(data);
+      } catch (err) {
+        console.error('Error fetching price data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load price data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 30000);
+    const interval = setInterval(fetchPrices, 30000); // Fetch every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -98,6 +85,14 @@ const PriceFeeds: React.FC = () => {
       </ResponsiveContainer>
     );
   };
+
+  if (isLoading) {
+    return <div className="text-center py-4">Loading price data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500 py-4">{error}</div>;
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4">

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import { config } from '../config';
+import { getOrCreateDemoUser } from '../services/demoUserService';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { address, password } = req.body;
@@ -31,7 +32,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     jwt.sign(
       payload,
       config.JWT_SECRET,
-      { expiresIn: '1h' },
+      { expiresIn: '48h' },
       (err, token) => {
         if (err) throw err;
         res.json({ token });
@@ -70,7 +71,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     jwt.sign(
       payload,
       config.JWT_SECRET,
-      { expiresIn: '1h' },
+      { expiresIn: '48h' },
       (err, token) => {
         if (err) throw err;
         res.json({ token });
@@ -79,5 +80,28 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Server error');
+  }
+};
+
+
+export const tryDemo = async (req: Request, res: Response) => {
+  try {
+    const { portfolio, performanceAnalytics } = await getOrCreateDemoUser();
+
+    if (!portfolio || !performanceAnalytics) {
+      return res.status(500).json({ message: 'Failed to create or retrieve demo user data' });
+    }
+
+    const token = jwt.sign({ user: { id: 'demo-user' } }, config.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({
+      token,
+      user: { id: 'demo-user', email: 'demo@example.com' },
+      portfolio,
+      performanceAnalytics,
+    });
+  } catch (error) {
+    console.error('Error in tryDemo:', error);
+    res.status(500).json({ message: 'Server error', error: (error as Error).message });
   }
 };

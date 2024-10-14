@@ -1,83 +1,180 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, Brush, ReferenceLine } from 'recharts';
 import { format, subMonths, parseISO, isAfter } from 'date-fns';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
+import axios from 'axios';
 
-interface DataPoint {
-    date: string;
-    portfolio: number;
-    benchmark: number;
+interface PerformanceData {
+  date: string;
+  totalValue: number;
+  dailyReturn: number;
 }
-  
-  const generateMockData = (months: number): DataPoint[] => {
-    const data: DataPoint[] = [];
-    const startDate = subMonths(new Date(), months);
-  
-    for (let i = 0; i <= months; i++) {
-      const currentDate = format(subMonths(new Date(), months - i), 'yyyy-MM-dd');
-      const portfolio = Math.floor(10000 + Math.random() * 5000);
-      const benchmark = Math.floor(10000 + Math.random() * 5000);
-      data.push({ date: currentDate, portfolio, benchmark });
-    }
-  
-    return data;
-  };
-  
-  const calculatePerformanceMetrics = (data: DataPoint[]) => {
-    const startPortfolio = data[0].portfolio;
-    const endPortfolio = data[data.length - 1].portfolio;
-    const portfolioReturn = ((endPortfolio - startPortfolio) / startPortfolio) * 100;
-  
-    const startBenchmark = data[0].benchmark;
-    const endBenchmark = data[data.length - 1].benchmark;
-    const benchmarkReturn = ((endBenchmark - startBenchmark) / startBenchmark) * 100;
-  
-    const alpha = portfolioReturn - benchmarkReturn;
-  
-    // Calculate Sharpe Ratio (simplified)
-    const portfolioReturns = data.slice(1).map((d, i) => (d.portfolio - data[i].portfolio) / data[i].portfolio);
-    const avgReturn = portfolioReturns.reduce((sum, r) => sum + r, 0) / portfolioReturns.length;
-    const stdDev = Math.sqrt(portfolioReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / portfolioReturns.length);
-    const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252); // Annualized Sharpe Ratio
-  
-    return { portfolioReturn, benchmarkReturn, alpha, sharpeRatio };
-  };
-  
-  interface BrushStartEndIndex {
-      startIndex?: number;
-      endIndex?: number;
-  }
+
+interface NormalizedPerformanceData extends PerformanceData {
+  normalizedValue: number;
+}
+
+interface BrushStartEndIndex {
+  startIndex?: number;
+  endIndex?: number;
+}
 
 const PerformanceAnalytics: React.FC = () => {
-    const [dateRange, setDateRange] = useState('6M');
-    const [showBenchmark, setShowBenchmark] = useState(true);
-    const [showArea, setShowArea] = useState(true);
-    const data = useMemo(() => generateMockData(36), []); // Generate 3 years of data
-  
-    const filteredData = useMemo(() => {
-      const months = dateRange === '1Y' ? 12 : dateRange === '6M' ? 6 : dateRange === '3M' ? 3 : 36;
-      const startDate = subMonths(new Date(), months);
-      return data.filter((d) => isAfter(parseISO(d.date), startDate));
-    }, [data, dateRange]);
-  
-    const { portfolioReturn, benchmarkReturn, alpha, sharpeRatio } = useMemo(
-      () => calculatePerformanceMetrics(filteredData),
-      [filteredData]
-    );
-  
-    const handleBrushChange = useCallback((newRange: BrushStartEndIndex) => {
-      if (newRange && newRange.startIndex !== undefined && newRange.endIndex !== undefined && newRange.startIndex !== newRange.endIndex) {
-        const startDate = filteredData[newRange.startIndex].date;
-        const endDate = filteredData[newRange.endIndex].date;
-        console.log(`Custom range selected: ${startDate} to ${endDate}`);
-        // Here you can update state or perform any other action based on the selected range
+  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const [dateRange, setDateRange] = useState('6M');
+  const [showBenchmark, setShowBenchmark] = useState(true);
+  const [showArea, setShowArea] = useState(true);
+  const [showNormalizedData, setShowNormalizedData] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const fetchPerformanceData = useCallback(async () => {
+    if (!isAuthenticated) {
+      console.log('Not authenticated yet, skipping fetch');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
       }
-    }, [filteredData]);
+
+      const response = await axios.get<PerformanceData[]>('http://192.168.1.123:5000/api/performance-analytics', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setPerformanceData(response.data);
+    } catch (error) {
+      console.error('Error fetching performance data:', error);
+      setError('Failed to fetch performance data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPerformanceData();
+    }
+  }, [isAuthenticated, fetchPerformanceData]);
+
+  const handleUpdateData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      await axios.post('http://192.168.1.123:5000/api/performance-analytics/update', {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await fetchPerformanceData();
+    } catch (error) {
+      console.error('Error updating performance data:', error);
+      setError('Failed to update performance data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    const months = dateRange === '1Y' ? 12 : dateRange === '6M' ? 6 : dateRange === '3M' ? 3 : 36;
+    const startDate = subMonths(new Date(), months);
+    return performanceData.filter((d) => isAfter(parseISO(d.date), startDate));
+  }, [performanceData, dateRange]);
+
+  const normalizedData: NormalizedPerformanceData[] = useMemo(() => {
+    if (filteredData.length === 0) return [];
+    const startValue = filteredData[0].totalValue;
+    return filteredData.map((item) => ({
+      ...item,
+      normalizedValue: (item.totalValue / startValue) * 100,
+    }));
+  }, [filteredData]);
+
+  const chartData = showNormalizedData ? normalizedData : filteredData;
+
+  const calculatePerformanceMetrics = useCallback((data: PerformanceData[]) => {
+    if (data.length < 2) return { portfolioReturn: 0, benchmarkReturn: 0, alpha: 0, sharpeRatio: 0 };
+
+    const startValue = data[0].totalValue;
+    const endValue = data[data.length - 1].totalValue;
+    const portfolioReturn = ((endValue - startValue) / startValue) * 100;
+
+    // Placeholder for benchmark calculations
+    const benchmarkReturn = 0;
+    const alpha = portfolioReturn - benchmarkReturn;
+
+    // Simplified Sharpe Ratio calculation
+    const returns = data.slice(1).map((d, i) => (d.totalValue - data[i].totalValue) / data[i].totalValue);
+    const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
+    const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252); // Annualized Sharpe Ratio
+
+    return { portfolioReturn, benchmarkReturn, alpha, sharpeRatio };
+  }, []);
+
+  const { portfolioReturn, benchmarkReturn, alpha, sharpeRatio } = useMemo(
+    () => calculatePerformanceMetrics(filteredData),
+    [filteredData, calculatePerformanceMetrics]
+  );
+
+  const handleBrushChange = useCallback((newRange: BrushStartEndIndex) => {
+    if (newRange && newRange.startIndex !== undefined && newRange.endIndex !== undefined && newRange.startIndex !== newRange.endIndex) {
+      const startDate = filteredData[newRange.startIndex].date;
+      const endDate = filteredData[newRange.endIndex].date;
+      console.log(`Custom range selected: ${startDate} to ${endDate}`);
+      // Here you can update state or perform any other action based on the selected range
+    }
+  }, [filteredData]);
+
+  useEffect(() => {
+    if (filteredData.length > 0) {
+      console.log("Start value:", filteredData[0].totalValue);
+    }
+  }, [filteredData]);
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Performance Analytics</h2>
+        <button
+          onClick={handleUpdateData}
+          disabled={isLoading}
+          className={`px-4 py-2 rounded-full transition-all duration-300 ${
+            isLoading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          {isLoading ? 'Updating...' : 'Add Latest Data Point'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-8">
         <div className="flex space-x-2">
           {['3M', '6M', '1Y', 'All'].map((range) => (
             <button
@@ -137,12 +234,21 @@ const PerformanceAnalytics: React.FC = () => {
           />
           <span className="ml-2 text-gray-700 dark:text-gray-300">Show Area</span>
         </label>
+        <label className="inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            className="form-checkbox h-5 w-5 text-indigo-600 rounded transition duration-150 ease-in-out"
+            checked={showNormalizedData}
+            onChange={(e) => setShowNormalizedData(e.target.checked)}
+          />
+          <span className="ml-2 text-gray-700 dark:text-gray-300">Show Normalized Data</span>
+        </label>
       </div>
 
       <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl shadow-inner">
         <ResponsiveContainer width="100%" height={400}>
           <LineChart
-            data={filteredData}
+            data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
           >
             <defs>
@@ -163,9 +269,10 @@ const PerformanceAnalytics: React.FC = () => {
               tick={{ fill: '#718096', fontSize: 12 }}
             />
             <YAxis
+              domain={showNormalizedData ? [0, 'dataMax + 10'] : [0, 'dataMax + 1000']}
               stroke="#718096"
               tick={{ fill: '#718096', fontSize: 12 }}
-              tickFormatter={(value) => `$${value.toLocaleString()}`}
+              tickFormatter={(value) => showNormalizedData ? `${value.toFixed(0)}%` : `$${value.toLocaleString()}`}
             />
             <Tooltip
               contentStyle={{
@@ -177,8 +284,8 @@ const PerformanceAnalytics: React.FC = () => {
               labelStyle={{ color: '#4a5568', fontWeight: 'bold' }}
               labelFormatter={(date) => format(parseISO(date), 'MMM dd, yyyy')}
               formatter={(value: number, name: string) => [
-                `$${value.toLocaleString()}`,
-                name.charAt(0).toUpperCase() + name.slice(1)
+                showNormalizedData ? `${value.toFixed(2)}%` : `$${value.toLocaleString()}`,
+                name === 'totalValue' || name === 'normalizedValue' ? 'Portfolio Value' : 'Daily Return'
               ]}
             />
             <Legend
@@ -189,8 +296,8 @@ const PerformanceAnalytics: React.FC = () => {
             />
             <Line
               type="monotone"
-              dataKey="portfolio"
-              name="Portfolio"
+              dataKey={showNormalizedData ? "normalizedValue" : "totalValue"}
+              name="Portfolio Value"
               stroke="#8884d8"
               strokeWidth={3}
               dot={false}
@@ -199,8 +306,8 @@ const PerformanceAnalytics: React.FC = () => {
             {showBenchmark && (
               <Line
                 type="monotone"
-                dataKey="benchmark"
-                name="Benchmark"
+                dataKey="dailyReturn"
+                name="Daily Return"
                 stroke="#82ca9d"
                 strokeWidth={3}
                 dot={false}
@@ -211,26 +318,28 @@ const PerformanceAnalytics: React.FC = () => {
               <>
                 <Area
                   type="monotone"
-                  dataKey="portfolio"
+                  dataKey={showNormalizedData ? "normalizedValue" : "totalValue"}
                   fill="url(#colorPortfolio)"
                   fillOpacity={0.3}
                 />
                 {showBenchmark && (
                   <Area
                     type="monotone"
-                    dataKey="benchmark"
+                    dataKey="dailyReturn"
                     fill="url(#colorBenchmark)"
                     fillOpacity={0.3}
                   />
                 )}
               </>
             )}
-            <ReferenceLine
-              y={filteredData[0].portfolio}
-              label={{ value: "Start", position: 'insideLeft', fill: '#e53e3e', fontSize: 12 }}
-              stroke="#e53e3e"
-              strokeDasharray="3 3"
-            />
+            {chartData.length > 0 && (
+              <ReferenceLine
+                y={showNormalizedData ? 100 : chartData[0].totalValue}
+                label={{ value: "Start", position: 'insideLeft', fill: '#e53e3e', fontSize: 12 }}
+                stroke="#e53e3e"
+                strokeDasharray="3 3"
+              />
+            )}
             <Brush
               dataKey="date"
               height={30}

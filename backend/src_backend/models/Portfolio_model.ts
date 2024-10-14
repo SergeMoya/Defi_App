@@ -6,10 +6,11 @@ export interface IAsset {
   amount: number;
   value: number;
   change24h: number;
+  image?: string;
 }
 
 export interface IPortfolio extends Document {
-  userId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId | string;
   assets: IAsset[];
   totalValue: number;
   totalChange24h: number;
@@ -22,10 +23,11 @@ const AssetSchema: Schema = new Schema({
   amount: { type: Number, required: true },
   value: { type: Number, required: true },
   change24h: { type: Number, required: true },
+  image: { type: String },
 });
 
 const PortfolioSchema: Schema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.Mixed, ref: 'User', required: true },
   assets: [AssetSchema],
   totalValue: { type: Number, required: true },
   totalChange24h: { type: Number, required: true },

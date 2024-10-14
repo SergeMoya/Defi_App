@@ -6,6 +6,7 @@ import portfolioRoutes from './routes/portfolio_route';
 import priceFeedRoutes from './routes/priceFeed_route';
 import transactionRoutes from './routes/transaction_route';
 import authRoutes from './routes/auth_route';
+import performanceAnalyticsRoutes from './routes/performanceAnalytics_route';
 import { getPriceData } from './services/priceFeedService';
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/price-feed', priceFeedRoutes);
 app.use('/api/transaction', transactionRoutes);
+app.use('/api/performance-analytics', performanceAnalyticsRoutes);
 
 app.get('/', (req, res) => {
   res.send('DeFi Dashboard API');

@@ -1,10 +1,10 @@
 import { Response } from 'express';
 import Portfolio, { IPortfolio, IAsset } from '../models/Portfolio_model';
-import { getPriceData, PriceData } from '../services/priceFeedService';
+import { getPriceData, CoinData } from '../services/priceFeedService';
 import { UserRequest } from '../types';
 
-const createSamplePortfolio = (priceData: PriceData): IAsset[] => {
-  return Object.values(priceData)
+const createSamplePortfolio = (priceData: CoinData[]): IAsset[] => {
+  return priceData
     .slice(0, 5)
     .map(coin => ({
       name: coin.name,
@@ -16,14 +16,14 @@ const createSamplePortfolio = (priceData: PriceData): IAsset[] => {
     }));
 };
 
-const updateAssetPrices = (assets: IAsset[], priceData: PriceData): IAsset[] => {
+const updateAssetPrices = (assets: IAsset[], priceData: CoinData[]): IAsset[] => {
   return assets.map(asset => {
-    const coinData = priceData[asset.symbol.toLowerCase()];
+    const coinData = priceData.find(coin => coin.symbol.toLowerCase() === asset.symbol.toLowerCase());
     if (coinData) {
       return {
         ...asset,
-        value: asset.amount * coinData.usd,
-        change24h: coinData.usd_24h_change,
+        value: asset.amount * coinData.current_price,
+        change24h: coinData.price_change_percentage_24h || 0,
         image: coinData.image,
       };
     }
@@ -103,8 +103,9 @@ export const updatePortfolio = async (req: UserRequest, res: Response) => {
     let totalChange24h = 0;
 
     const updatedAssets: IAsset[] = assets.map((asset) => {
-      const price = priceData[asset.symbol.toLowerCase()]?.usd || 0;
-      const change24h = priceData[asset.symbol.toLowerCase()]?.usd_24h_change || 0;
+      const coinData = priceData.find(coin => coin.symbol.toLowerCase() === asset.symbol.toLowerCase());
+      const price = coinData?.current_price || 0;
+      const change24h = coinData?.price_change_percentage_24h || 0;
       const value = asset.amount * price;
 
       totalValue += value;
@@ -151,8 +152,9 @@ export const addAsset = async (req: UserRequest, res: Response) => {
     }
 
     const priceData = await getPriceData();
-    const price = priceData[symbol.toLowerCase()]?.usd || 0;
-    const change24h = priceData[symbol.toLowerCase()]?.usd_24h_change || 0;
+    const coinData = priceData.find(coin => coin.symbol.toLowerCase() === symbol.toLowerCase());
+    const price = coinData?.current_price || 0;
+    const change24h = coinData?.price_change_percentage_24h || 0;
     const value = amount * price;
 
     const portfolio = await Portfolio.findOne({ userId });
