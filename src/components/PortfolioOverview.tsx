@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '../utils/formatters';
@@ -8,24 +9,65 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 interface AssetData {
   name: string;
+  symbol: string;
   value: number;
   amount: number;
   change24h: number;
 }
 
-const initialData: AssetData[] = [
-  { name: 'ETH', value: 5000, amount: 2.5, change24h: 5.2 },
-  { name: 'BTC', value: 4000, amount: 0.1, change24h: -2.1 },
-  { name: 'USDT', value: 2000, amount: 2000, change24h: 0.1 },
-  { name: 'Other', value: 1345.67, amount: 0, change24h: 1.5 },
-];
+interface PortfolioData {
+  assets: AssetData[];
+  totalValue: number;
+  totalChange24h: number;
+}
 
 const PortfolioOverview: React.FC = () => {
-  const [data, setData] = useState<AssetData[]>(initialData);
+  const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
-  const totalValue = data.reduce((sum, item) => sum + item.value, 0);
-  const totalChange24h = data.reduce((sum, item) => sum + (item.value * item.change24h) / 100, 0);
+  const fetchPortfolioData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      const response = await axios.get<PortfolioData>('http://localhost:5000/api/portfolio', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setPortfolioData(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching portfolio data:', err);
+      setError('Failed to fetch portfolio data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPortfolioData();
+    const intervalId = setInterval(fetchPortfolioData, 5 * 60 * 1000); // Refresh every 5 minutes
+    return () => clearInterval(intervalId);
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-center">{error}</div>;
+  }
+
+  if (!portfolioData) {
+    return <div className="text-center">No portfolio data available.</div>;
+  }
+
+  const { assets, totalValue, totalChange24h } = portfolioData;
   const totalChangePercentage = (totalChange24h / (totalValue - totalChange24h)) * 100;
 
   const handlePieEnter = (_: any, index: number) => {
@@ -34,16 +76,6 @@ const PortfolioOverview: React.FC = () => {
 
   const handlePieLeave = () => {
     setActiveIndex(-1);
-  };
-
-  const handlePieClick = (entry: any, index: number) => {
-    const newData = [...data];
-    newData[index] = {
-      ...newData[index],
-      value: newData[index].value * (1 + (Math.random() - 0.5) * 0.1),
-      change24h: newData[index].change24h + (Math.random() - 0.5) * 2,
-    };
-    setData(newData);
   };
 
   const renderLegend = (props: any) => {
@@ -100,7 +132,7 @@ const PortfolioOverview: React.FC = () => {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={data}
+                  data={assets}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -110,9 +142,8 @@ const PortfolioOverview: React.FC = () => {
                   dataKey="value"
                   onMouseEnter={handlePieEnter}
                   onMouseLeave={handlePieLeave}
-                  onClick={handlePieClick}
                 >
-                  {data.map((entry, index) => (
+                  {assets.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
@@ -128,7 +159,7 @@ const PortfolioOverview: React.FC = () => {
                         <div className="bg-white dark:bg-gray-700 p-2 shadow rounded">
                           <p className="text-sm font-semibold">{data.name}</p>
                           <p className="text-sm">{formatCurrency(data.value)}</p>
-                          <p className="text-sm">{data.amount} {data.name}</p>
+                          <p className="text-sm">{data.amount} {data.symbol}</p>
                           <p className={`text-sm ${data.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {formatPercentage(data.change24h)} (24h)
                           </p>
@@ -145,9 +176,9 @@ const PortfolioOverview: React.FC = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Asset Breakdown</h4>
             <ul className="space-y-3">
-              {data.map((asset, index) => (
+              {assets.map((asset, index) => (
                 <motion.li
-                  key={asset.name}
+                  key={asset.symbol}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -159,7 +190,7 @@ const PortfolioOverview: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(asset.value)}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{asset.amount} {asset.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{asset.amount} {asset.symbol}</p>
                     <p className={`text-xs ${asset.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatPercentage(asset.change24h)} (24h)
                     </p>
@@ -175,9 +206,9 @@ const PortfolioOverview: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: '24h Change', value: formatCurrency(totalChange24h), percentage: formatPercentage(totalChangePercentage) },
-              { label: '7d Change', value: formatCurrency(totalValue * 0.15), percentage: '+15.00%' },
-              { label: '30d Change', value: formatCurrency(totalValue * 0.25), percentage: '+25.00%' },
-              { label: 'All Time', value: formatCurrency(totalValue * 2), percentage: '+200.00%' },
+              { label: '7d Change', value: 'N/A', percentage: 'N/A' },
+              { label: '30d Change', value: 'N/A', percentage: 'N/A' },
+              { label: 'All Time', value: 'N/A', percentage: 'N/A' },
             ].map((item, index) => (
               <motion.div
                 key={index}
@@ -188,7 +219,7 @@ const PortfolioOverview: React.FC = () => {
               >
                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
                 <p className="text-lg font-semibold text-gray-900 dark:text-white">{item.value}</p>
-                <p className={`text-sm ${item.percentage.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-sm ${item.percentage.startsWith('+') ? 'text-green-600' : item.percentage.startsWith('-') ? 'text-red-600' : 'text-gray-500'}`}>
                   {item.percentage}
                 </p>
               </motion.div>
