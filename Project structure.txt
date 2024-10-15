@@ -48,7 +48,6 @@ src\components\PortfolioOverview.tsx
 src\components\PriceFeeds.tsx
 src\components\Sidebar.tsx
 src\components\TransactionHistory.tsx
-src\components\WalletConnection.tsx
 src\utils
 src\App.test.tsx
 src\App.tsx
