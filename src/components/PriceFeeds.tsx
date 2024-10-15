@@ -30,7 +30,7 @@ const PriceFeeds: React.FC = () => {
         if (!token) {
           throw new Error('No authentication token found');
         }
-
+        //const response = await fetch('http://192.168.0.103:5000/api/price-feed?count=5', {
         const response = await fetch('http://192.168.1.123:5000/api/price-feed?count=5', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -57,7 +57,7 @@ const PriceFeeds: React.FC = () => {
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 30000); // Fetch every 30 seconds
+    const interval = setInterval(fetchPrices, 300000); // Fetch every 30 seconds
     return () => clearInterval(interval);
   }, []);
 

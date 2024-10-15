@@ -14,7 +14,7 @@ backend\src_backend\models
 backend\src_backend\models\PerformanceAnalytics_model.ts
 backend\src_backend\models\Portfolio_model.ts
 backend\src_backend\models\PriceFeed_model.ts
-backend\src_backend\models\Transaction_mode.ts
+backend\src_backend\models\Transaction_model.ts
 backend\src_backend\models\User.ts
 backend\src_backend\routes
 backend\src_backend\routes\auth_route.ts

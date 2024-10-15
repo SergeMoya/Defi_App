@@ -2,8 +2,10 @@
 
 import Portfolio from '../models/Portfolio_model';
 import PerformanceAnalytics from '../models/PerformanceAnalytics_model';
+import Transaction from '../models/Transaction_model';
 import { IAsset } from '../models/Portfolio_model';
 import { IPerformanceData } from '../models/PerformanceAnalytics_model';
+import { ITransaction } from '../models/Transaction_model';
 import { getPriceData } from './priceFeedService';
 
 const DEMO_USER_ID = 'demo-user';
@@ -18,6 +20,7 @@ export const createDemoUser = async () => {
     const priceData = await getPriceData();
     const demoAssets = generateDemoAssets(priceData);
     const performanceData = generatePerformanceData(demoAssets);
+    const demoTransactions = generateDemoTransactions(demoAssets);
 
     // Create demo portfolio
     const portfolio = new Portfolio({
@@ -41,11 +44,14 @@ export const createDemoUser = async () => {
       data: performanceData,
     });
 
+    // Save demo transactions
+    await Transaction.insertMany(demoTransactions);
+
     await portfolio.save();
     await performanceAnalytics.save();
 
     console.log('Demo user created successfully');
-    return { portfolio, performanceAnalytics };
+    return { portfolio, performanceAnalytics, transactions: demoTransactions };
   } catch (error) {
     console.error('Error creating demo user:', error);
     throw error;
@@ -58,10 +64,10 @@ const generateDemoAssets = (priceData: any): DemoAsset[] => {
     name: coin.name,
     symbol: coin.symbol,
     amount: parseFloat((Math.random() * 10).toFixed(4)),
-    value: coin.usd * parseFloat((Math.random() * 10).toFixed(4)),
-    change24h: coin.usd_24h_change,
+    value: coin.current_price * parseFloat((Math.random() * 10).toFixed(4)),
+    change24h: coin.price_change_percentage_24h,
     image: coin.image,
-    historicalPrices: generateHistoricalPrices(coin.usd, 365),
+    historicalPrices: generateHistoricalPrices(coin.current_price, 365),
   }));
 };
 
@@ -107,6 +113,47 @@ const generatePerformanceData = (assets: DemoAsset[]): IPerformanceData[] => {
   return performanceData;
 };
 
+const generateDemoTransactions = (assets: DemoAsset[]): ITransaction[] => {
+  console.log('Generating demo transactions...');
+  const transactions: ITransaction[] = [];
+  const now = new Date();
+
+  assets.forEach(asset => {
+    // Generate a buy transaction for each asset
+    transactions.push({
+      userId: DEMO_USER_ID,
+      type: 'buy',
+      asset: asset.symbol,
+      amount: asset.amount,
+      price: asset.value / asset.amount,
+      date: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within last 30 days
+      status: 'completed',
+      totalValue: asset.value,
+    } as ITransaction);
+
+    // Generate 1-3 additional random transactions for each asset
+    const additionalTransactions = Math.floor(Math.random() * 3) + 1;
+    for (let i = 0; i < additionalTransactions; i++) {
+      const isBuy = Math.random() > 0.5;
+      const amount = isBuy ? Math.random() * asset.amount : Math.random() * (asset.amount / 2);
+      const price = asset.value / asset.amount * (1 + (Math.random() - 0.5) * 0.1); // Price with ±5% variation
+
+      transactions.push({
+        userId: DEMO_USER_ID,
+        type: isBuy ? 'buy' : 'sell',
+        asset: asset.symbol,
+        amount: amount,
+        price: price,
+        date: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within last 30 days
+        status: 'completed',
+        totalValue: amount * price,
+      } as ITransaction);
+    }
+  });
+
+  return transactions.sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date, most recent first
+};
+
 export const getDemoPortfolio = async () => {
   try {
     console.log('Fetching demo portfolio...');
@@ -144,14 +191,15 @@ export const getOrCreateDemoUser = async () => {
     console.log('Getting or creating demo user...');
     let portfolio = await getDemoPortfolio();
     let performanceAnalytics = await getDemoPerformanceData();
+    let transactions = await Transaction.find({ userId: DEMO_USER_ID });
 
-    if (!portfolio || !performanceAnalytics) {
-      console.log('Demo user not found, creating new demo user...');
-      ({ portfolio, performanceAnalytics } = await createDemoUser());
+    if (!portfolio || !performanceAnalytics || transactions.length === 0) {
+      console.log('Demo user not found or incomplete, creating new demo user...');
+      ({ portfolio, performanceAnalytics, transactions } = await createDemoUser());
     }
 
     console.log('Demo user data retrieved successfully');
-    return { portfolio, performanceAnalytics };
+    return { portfolio, performanceAnalytics, transactions };
   } catch (error) {
     console.error('Error in getOrCreateDemoUser:', error);
     throw error;

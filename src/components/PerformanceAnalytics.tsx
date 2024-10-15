@@ -43,6 +43,7 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
+      //const response = await axios.get<PerformanceData[]>('http://192.168.0.103:5000/api/performance-analytics', {
       const response = await axios.get<PerformanceData[]>('http://192.168.1.123:5000/api/performance-analytics', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -79,6 +80,7 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
+      //await axios.post('http://192.168.0.103:5000/api/performance-analytics/update', {}, {
       await axios.post('http://192.168.1.123:5000/api/performance-analytics/update', {}, {
         headers: {
           Authorization: `Bearer ${token}`,

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+// src/components/Header.tsx
+
+import React, { useState, useEffect } from 'react';
 import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
 import { Transition } from '@headlessui/react';
+import { ethers } from 'ethers';
 import logoImage from '../assets/acare_logo.png';
 
 interface HeaderProps {
@@ -11,6 +14,62 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    checkWalletConnection();
+  }, []);
+
+  const checkWalletConnection = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.listAccounts();
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0].address);
+        }
+      } catch (err) {
+        console.error('Error checking wallet connection:', err);
+      }
+    }
+  };
+
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        setIsConnecting(true);
+        setError(null);
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        // Get the signer and retrieve the address
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress(); // This retrieves the address as a string
+
+        // Set the walletAddress state to the string value
+        setWalletAddress(address);
+      } catch (err) {
+        console.error('Error connecting wallet:', err);
+        setError('Failed to connect wallet. Please try again.');
+      } finally {
+        setIsConnecting(false);
+      }
+    } else {
+      setError('MetaMask is not installed. Please install it to connect your wallet.');
+      window.open('https://metamask.io/download.html', '_blank'); // Redirect user to MetaMask installation page
+    }
+  };
+
+  const disconnectWallet = () => {
+    setWalletAddress(null);
+  };
+
+  const formatAddress = (address: string) => {
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -27,11 +86,7 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout }) => {
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
             <a href="#" className="flex items-center">
-              <img
-                className="h-8 w-auto mr-2"
-                src={logoImage}
-                alt="Acare Dashboard"
-              />
+              <img className="h-8 w-auto mr-2" src={logoImage} alt="Acare Dashboard" />
               <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                 Acare Dashboard
               </span>
@@ -49,6 +104,29 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout }) => {
             ))}
           </nav>
           <div className="flex items-center space-x-4">
+            {walletAddress ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {formatAddress(walletAddress)}
+                </span>
+                <button
+                  onClick={disconnectWallet}
+                  className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  isConnecting ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+              </button>
+            )}
             <button
               className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
               aria-label="Notifications"
@@ -116,6 +194,12 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout }) => {
           </div>
         </div>
       </Transition>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
     </header>
   );
 };
