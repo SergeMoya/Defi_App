@@ -9,6 +9,7 @@ import authRoutes from './routes/auth_route';
 import performanceAnalyticsRoutes from './routes/performanceAnalytics_route';
 import { getPriceData } from './services/priceFeedService';
 
+
 const app = express();
 
 // Middleware
@@ -38,7 +39,7 @@ const connectDB = async () => {
 app.use('/api/auth', authRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/price-feed', priceFeedRoutes);
-app.use('/api/transaction', transactionRoutes);
+app.use('/api/transactions', transactionRoutes);
 app.use('/api/performance-analytics', performanceAnalyticsRoutes);
 
 app.get('/', (req, res) => {

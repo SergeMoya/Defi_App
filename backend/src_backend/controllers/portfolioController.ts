@@ -44,10 +44,10 @@ export const getPortfolio = async (req: UserRequest, res: Response) => {
     }
 
     const priceData = await getPriceData();
-    console.log('Fetched price data:', priceData);
+    //console.log('Fetched price data:', priceData);
 
     let portfolio = await Portfolio.findOne({ userId });
-    console.log('Found portfolio:', portfolio);
+    //console.log('Found portfolio:', portfolio);
 
     if (!portfolio) {
       console.log('Creating new portfolio for userId:', userId);
@@ -65,7 +65,7 @@ export const getPortfolio = async (req: UserRequest, res: Response) => {
       await portfolio.save();
       console.log('New portfolio created with sample assets:', portfolio);
     } else {
-      console.log('Updating existing portfolio with current prices');
+      //console.log('Updating existing portfolio with current prices');
       const updatedAssets = updateAssetPrices(portfolio.assets, priceData);
       const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
       const totalChange24h = updatedAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0);
@@ -75,7 +75,7 @@ export const getPortfolio = async (req: UserRequest, res: Response) => {
       portfolio.totalChange24h = totalChange24h;
       portfolio.lastUpdated = new Date();
       await portfolio.save();
-      console.log('Portfolio updated with current prices:', portfolio);
+      //console.log('Portfolio updated with current prices:', portfolio);
     }
 
     res.json(portfolio);

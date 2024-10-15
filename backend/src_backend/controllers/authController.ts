@@ -86,19 +86,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const tryDemo = async (req: Request, res: Response) => {
   try {
-    const { portfolio, performanceAnalytics } = await getOrCreateDemoUser();
+    const { portfolio, performanceAnalytics, transactions } = await getOrCreateDemoUser();
 
-    if (!portfolio || !performanceAnalytics) {
+    if (!portfolio || !performanceAnalytics || !transactions) {
       return res.status(500).json({ message: 'Failed to create or retrieve demo user data' });
     }
 
-    const token = jwt.sign({ user: { id: 'demo-user' } }, config.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ user: { id: 'demo-user' } }, config.JWT_SECRET, { expiresIn: '48h' });
 
     res.json({
       token,
       user: { id: 'demo-user', email: 'demo@example.com' },
       portfolio,
       performanceAnalytics,
+      transactions,
     });
   } catch (error) {
     console.error('Error in tryDemo:', error);

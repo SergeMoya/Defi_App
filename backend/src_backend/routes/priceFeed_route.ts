@@ -3,7 +3,7 @@
 import express from 'express';
 import { getPriceFeeds } from '../controllers/priceFeedController';
 import { authMiddleware } from '../middleware/auth';
-import { UserRequest } from '../types'; // Make sure this import path is correct
+import { UserRequest } from '../types'; 
 
 const router = express.Router();
 
