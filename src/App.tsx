@@ -25,9 +25,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header isAuthenticated={!!token} onLogout={handleLogout} />
       {token ? (
-        <MainContent />
+        <>
+          <Header 
+            isAuthenticated={true} 
+            onLogout={handleLogout} 
+            onDemoAuthSuccess={handleAuthSuccess} 
+          />
+          <MainContent />
+        </>
       ) : (
         <div className="flex-grow flex items-center justify-center bg-gray-100 dark:bg-gray-900">
           <Authentication onAuthSuccess={handleAuthSuccess} />

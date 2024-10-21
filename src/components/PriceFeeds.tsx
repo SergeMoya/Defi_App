@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowUpIcon, ArrowDownIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import axios from 'axios';
 
 interface PriceData {
   symbol: string;
@@ -12,86 +13,95 @@ interface PriceData {
   priceHistory: { timestamp: number; price: number }[];
 }
 
+const API_BASE_URL = 'http://192.168.0.103:5000'; // Replace with your actual API base URL
+const REFRESH_INTERVAL = 300000; // 5 minute
+
 const PriceFeeds: React.FC = () => {
   const [prices, setPrices] = useState<PriceData[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Get the token from localStorage
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-        //const response = await fetch('http://192.168.0.103:5000/api/price-feed?count=5', {
-        const response = await fetch('http://192.168.1.123:5000/api/price-feed?count=5', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please log in again.');
-          } else {
-            throw new Error('Failed to fetch price data');
-          }
-        }
-
-        const data: PriceData[] = await response.json();
-        setPrices(data);
-      } catch (err) {
-        console.error('Error fetching price data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load price data. Please try again later.');
-      } finally {
-        setIsLoading(false);
+  const fetchPrices = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
       }
-    };
 
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 300000); // Fetch every 30 seconds
-    return () => clearInterval(interval);
+      const response = await axios.get<PriceData[]>(`${API_BASE_URL}/api/price-feed`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: { count: 5 }
+      });
+
+      setPrices(response.data);
+    } catch (err) {
+      console.error('Error fetching price data:', err);
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) {
+          setError('Authentication failed. Please log in again.');
+        } else if (err.response?.status === 429) {
+          setError('Rate limit exceeded. Please try again later.');
+        } else {
+          setError('Failed to fetch price data. Please try again.');
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const formatLargeNumber = (num: number) => {
+  useEffect(() => {
+    fetchPrices();
+    const interval = setInterval(fetchPrices, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchPrices]);
+
+  const formatLargeNumber = (num: number): string => {
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
     if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
     return `$${num.toLocaleString()}`;
   };
 
-  const renderPriceChart = (coin: PriceData) => {
-    return (
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={coin.priceHistory}>
-          <XAxis
-            dataKey="timestamp"
-            tickFormatter={(timestamp) => format(new Date(timestamp), 'HH:mm')}
-          />
-          <YAxis domain={['auto', 'auto']} />
-          <Tooltip
-            labelFormatter={(label) => format(new Date(label), 'MMM dd, HH:mm')}
-            formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
-          />
-          <Line type="monotone" dataKey="price" stroke="#8884d8" dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  };
+  const renderPriceChart = (coin: PriceData) => (
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart data={coin.priceHistory}>
+        <XAxis
+          dataKey="timestamp"
+          tickFormatter={(timestamp) => format(new Date(timestamp), 'HH:mm')}
+        />
+        <YAxis 
+          domain={['auto', 'auto']}
+          tickFormatter={(value) => `$${value.toFixed(2)}`}
+        />
+        <Tooltip
+          labelFormatter={(label) => format(new Date(label), 'MMM dd, HH:mm')}
+          formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+        />
+        <Line type="monotone" dataKey="price" stroke="#8884d8" dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
 
-  if (isLoading) {
+  if (isLoading && prices.length === 0) {
     return <div className="text-center py-4">Loading price data...</div>;
   }
 
   if (error) {
-    return <div className="text-center text-red-500 py-4">{error}</div>;
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong className="font-bold">Error: </strong>
+        <span className="block sm:inline">{error}</span>
+      </div>
+    );
   }
 
   return (
