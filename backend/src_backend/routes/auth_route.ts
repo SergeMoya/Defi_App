@@ -1,7 +1,5 @@
-// src/routes/auth_route.ts
-
 import express from 'express';
-import { register, login, tryDemo } from '../controllers/authController';
+import { register, login, loginDemo } from '../controllers/authController';
 
 const router = express.Router();
 
@@ -12,6 +10,6 @@ const asyncHandler = (fn: Function) => (req: express.Request, res: express.Respo
 
 router.post('/register', asyncHandler(register));
 router.post('/login', asyncHandler(login));
-router.post('/try-demo', asyncHandler(tryDemo));
+router.post('/login-demo', asyncHandler(loginDemo));
 
 export default router;

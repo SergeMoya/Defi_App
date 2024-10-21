@@ -232,7 +232,7 @@ const PortfolioOverview: React.FC = () => {
           <div className="flex flex-wrap gap-4">
             <QuickActionButton icon={CurrencyDollarIcon} label="Buy / Sell" />
             <QuickActionButton icon={ArrowPathIcon} label="Swap Assets" />
-            <QuickActionButton icon={PlusIcon} label="Add Funds" />
+            <QuickActionButton icon={PlusIcon} label="Add Assets" />
           </div>
         </div>
       </div>

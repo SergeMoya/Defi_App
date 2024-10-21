@@ -44,8 +44,8 @@ const TransactionHistory: React.FC = () => {
       }
 
 
-      const response = await axios.get<TransactionResponse>('http://192.168.1.123:5000/api/transactions', {
-      //const response = await axios.get<TransactionResponse>('http://192.168.0.103:5000/api/transactions', {
+      //const response = await axios.get<TransactionResponse>('http://192.168.1.123:5000/api/transactions', {
+      const response = await axios.get<TransactionResponse>('http://192.168.0.103:5000/api/transactions', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
