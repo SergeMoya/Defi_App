@@ -186,16 +186,47 @@ export const getDemoPerformanceData = async () => {
   }
 };
 
-export const getOrCreateDemoUser = async () => {
+export const getOrCreateDemoUser = async (userId: string) => {
   try {
-    console.log('Getting or creating demo user...');
-    let portfolio = await getDemoPortfolio();
-    let performanceAnalytics = await getDemoPerformanceData();
-    let transactions = await Transaction.find({ userId: DEMO_USER_ID });
+    console.log('Getting or creating demo user data...');
+    let portfolio = await Portfolio.findOne({ userId });
+    let performanceAnalytics = await PerformanceAnalytics.findOne({ userId });
+    let transactions = await Transaction.find({ userId });
 
     if (!portfolio || !performanceAnalytics || transactions.length === 0) {
-      console.log('Demo user not found or incomplete, creating new demo user...');
-      ({ portfolio, performanceAnalytics, transactions } = await createDemoUser());
+      console.log('Demo user data not found or incomplete, creating new demo data...');
+      const priceData = await getPriceData();
+      const demoAssets = generateDemoAssets(priceData);
+      const performanceData = generatePerformanceData(demoAssets);
+      const demoTransactions = generateDemoTransactions(demoAssets);
+
+      portfolio = new Portfolio({
+        userId,
+        assets: demoAssets.map(asset => ({
+          name: asset.name,
+          symbol: asset.symbol,
+          amount: asset.amount,
+          value: asset.value,
+          change24h: asset.change24h,
+          image: asset.image,
+        })),
+        totalValue: demoAssets.reduce((sum, asset) => sum + asset.value, 0),
+        totalChange24h: demoAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0),
+        lastUpdated: new Date(),
+      });
+
+      performanceAnalytics = new PerformanceAnalytics({
+        userId,
+        data: performanceData,
+      });
+
+      await Transaction.deleteMany({ userId });
+      transactions = await Transaction.insertMany(
+        demoTransactions.map(t => ({ ...t, userId }))
+      );
+
+      await portfolio.save();
+      await performanceAnalytics.save();
     }
 
     console.log('Demo user data retrieved successfully');

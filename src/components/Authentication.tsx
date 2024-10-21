@@ -40,7 +40,7 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess }) => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/try-demo');
+      const response = await axios.post('http://localhost:5000/api/auth/login-demo');
       const { token, user, portfolio, performanceAnalytics } = response.data;
       if (token) {
         onAuthSuccess(token, { user, portfolio, performanceAnalytics });
@@ -109,7 +109,7 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess }) => {
           className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
           disabled={isLoading}
         >
-          {isLoading ? 'Loading...' : 'Try Demo'}
+          {isLoading ? 'Loading...' : 'Login with Demo Account'}
         </button>
       </div>
       <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
