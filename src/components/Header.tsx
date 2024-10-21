@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
+import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon, ArrowRightOnRectangleIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { Transition } from '@headlessui/react';
 import axios from 'axios';
 import logoImage from '../assets/acare_logo.png';
+import { Snackbar, Alert } from '@mui/material';
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -18,6 +19,7 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     checkWalletConnection();
@@ -40,11 +42,13 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
       setError('MetaMask is not installed. Please install it to connect your wallet.');
+      setSnackbarOpen(true);
       return;
     }
 
     if (isConnecting) {
       setError('A connection request is already in progress. Please wait for it to complete.');
+      setSnackbarOpen(true);
       return;
     }
 
@@ -61,10 +65,12 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
         setWalletAddress(address);
       } else {
         setError('No accounts found. Please make sure your MetaMask account is unlocked.');
+        setSnackbarOpen(true);
       }
     } catch (err: any) {
       console.error('Error connecting wallet:', err);
       setError(err.message || 'Failed to connect wallet');
+      setSnackbarOpen(true);
     } finally {
       setIsConnecting(false);
     }
@@ -87,10 +93,12 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
         onDemoAuthSuccess(token);
       } else {
         setError('Demo authentication failed. Please try again.');
+        setSnackbarOpen(true);
       }
     } catch (err) {
       console.error('Demo authentication error:', err);
       setError('Demo authentication failed. Please try again.');
+      setSnackbarOpen(true);
     } finally {
       setIsDemoLoading(false);
     }
@@ -107,6 +115,13 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   return (
@@ -134,25 +149,28 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
               <>
                 {walletAddress ? (
                   <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2">
+                    <WalletIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {formatAddress(walletAddress)}
                     </span>
                     <button
                       onClick={disconnectWallet}
-                      className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition duration-150 ease-in-out"
+                      className="ml-2 px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-full transition duration-150 ease-in-out flex items-center"
                     >
+                      <XMarkIcon className="h-4 w-4 mr-1" />
                       Disconnect
                     </button>
                   </div>
                 ) : (
-                  <>
+                  <div className="flex space-x-2">
                     <button
                       onClick={connectWallet}
                       disabled={isConnecting}
-                      className={`px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
+                      className={`px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out flex items-center ${
                         isConnecting ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
+                      <WalletIcon className="h-5 w-5 mr-2" />
                       {isConnecting ? 'Connecting...' : 'Connect Wallet'}
                     </button>
                     <button
@@ -164,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
                     >
                       {isDemoLoading ? 'Loading...' : 'Use Demo Wallet'}
                     </button>
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -234,11 +252,11 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
         </div>
       </Transition>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mt-4 mx-4" role="alert">
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
+        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </header>
   );
 };
