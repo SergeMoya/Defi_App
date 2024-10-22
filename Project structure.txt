@@ -1,3 +1,17 @@
+"I'm working on a fintech application with two types of user accounts: personal and demo. The application requires a wallet connection to display data in sections like portfolio and performance analytics. However, I'm facing an issue where, upon logging in without connecting a wallet, data is already displayed in these sections. The intended behavior is that data should only be displayed after the user connects their wallet.
+
+Here's the context:
+
+For personal accounts, the header on the dashboard should only display a "Connect Wallet" button.
+For demo accounts, the header displays both a "Connect Wallet" button and a "Use Wallet" button.
+The user can select "Use Wallet" to display demo data in demo mode, but real data should only be displayed once the wallet is connected.
+I would like to have a placeholder message in these sections saying something like "Please connect a wallet to see the data" to provide better feedback to users when the wallet is not yet connected. I need guidance on implementing this behavior efficiently to ensure that no data is prematurely displayed without a connected wallet, and placeholders are shown instead."
+
+
+Belowv is  my current project structure 
+
+
+
 backend
 backend\node_modules
 backend\src_backend
@@ -38,7 +52,12 @@ node_modules
 public
 src
 src\assets
+src\assets\acare_logo.png
 src\components
+src\components\components_portofolio
+src\components\components_portofolio\AddAssetModal.tsx
+src\components\providers
+src\components\providers\WalletAuthProvider.tsx
 src\components\Authentication.tsx
 src\components\Footer.tsx
 src\components\Header.tsx
@@ -51,6 +70,7 @@ src\components\TransactionHistory.tsx
 src\utils
 src\App.test.tsx
 src\App.tsx
+src\global.d.ts
 src\index.css
 src\index.tsx
 src\react-app-env.d.ts

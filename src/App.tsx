@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Alert, Snackbar } from '@mui/material';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
 import Footer from './components/Footer';
 import Authentication from './components/Authentication';
-import WalletAuthProvider from './components/providers/WalletAuthProvider';
-import { Alert, Snackbar } from '@mui/material';
+import { WalletProvider } from './context/WalletContext';
 
 interface AuthData {
   token: string;
@@ -48,7 +48,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <WalletAuthProvider>
+    <WalletProvider>
       <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
         {auth ? (
           <>
@@ -83,7 +83,7 @@ const App: React.FC = () => {
           </Alert>
         </Snackbar>
       </div>
-    </WalletAuthProvider>
+    </WalletProvider>
   );
 };
 

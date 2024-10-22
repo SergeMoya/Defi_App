@@ -1,7 +1,6 @@
-import axios from 'axios';
-import { getCachedData, setCachedData } from '../cache';
+// src/services/priceFeedService.ts
 
-const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
+import { apiService } from './apiService';
 
 export interface CoinData {
   id: string;
@@ -36,26 +35,8 @@ export interface CoinHistory {
 }
 
 export const getTopCoins = async (count: number = 10): Promise<CoinData[]> => {
-  const cacheKey = `topCoins_${count}`;
-  const cachedData = getCachedData<CoinData[]>(cacheKey);
-  
-  if (cachedData) {
-    return cachedData;
-  }
-
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
-      params: {
-        vs_currency: 'usd',
-        order: 'market_cap_desc',
-        per_page: count,
-        page: 1,
-        sparkline: false,
-      },
-    });
-    const data = response.data;
-    setCachedData(cacheKey, data);
-    return data;
+    return await apiService.getTopCoins(count);
   } catch (error) {
     console.error('Error fetching top coins:', error);
     throw error;
@@ -63,23 +44,8 @@ export const getTopCoins = async (count: number = 10): Promise<CoinData[]> => {
 };
 
 export const getCoinHistory = async (coinId: string, days: number = 1): Promise<CoinHistory> => {
-  const cacheKey = `coinHistory_${coinId}_${days}`;
-  const cachedData = getCachedData<CoinHistory>(cacheKey);
-  
-  if (cachedData) {
-    return cachedData;
-  }
-
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/${coinId}/market_chart`, {
-      params: {
-        vs_currency: 'usd',
-        days: days,
-      },
-    });
-    const data = response.data;
-    setCachedData(cacheKey, data);
-    return data;
+    return await apiService.getCoinHistory(coinId, days);
   } catch (error) {
     console.error(`Error fetching coin history for ${coinId}:`, error);
     throw error;
@@ -87,5 +53,20 @@ export const getCoinHistory = async (coinId: string, days: number = 1): Promise<
 };
 
 export const getPriceData = async (): Promise<CoinData[]> => {
-  return getTopCoins(10);
+  try {
+    return await apiService.getTopCoins(10);
+  } catch (error) {
+    console.error('Error fetching price data:', error);
+    throw error;
+  }
+};
+
+// Helper function to clear cache if needed
+export const clearPriceCache = (): void => {
+  apiService.clearCache();
+};
+
+// Helper function to get cache statistics
+export const getCacheStats = (): any => {
+  return apiService.getCacheStats();
 };
