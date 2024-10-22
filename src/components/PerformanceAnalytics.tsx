@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, Brush, ReferenceLine } from 'recharts';
 import { format, subMonths, parseISO, isAfter } from 'date-fns';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
+import { useWallet } from '../context/WalletContext';
+import WalletPlaceholder from './common/WalletPlaceholder';
 import axios from 'axios';
 
 interface PerformanceData {
@@ -19,7 +21,35 @@ interface BrushStartEndIndex {
   endIndex?: number;
 }
 
+interface MetricCardProps {
+  title: string;
+  value: string;
+  trend: 'up' | 'down';
+}
+
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend }) => (
+  <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{title}</h3>
+    <div className="flex items-baseline justify-between">
+      <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}%</p>
+      <span
+        className={`text-sm font-medium ${
+          trend === 'up' ? 'text-green-600' : 'text-red-600'
+        } flex items-center`}
+      >
+        {trend === 'up' ? (
+          <ArrowUpIcon className="h-5 w-5 mr-1" />
+        ) : (
+          <ArrowDownIcon className="h-5 w-5 mr-1" />
+        )}
+        {trend === 'up' ? 'Up' : 'Down'}
+      </span>
+    </div>
+  </div>
+);
+
 const PerformanceAnalytics: React.FC = () => {
+  const { isWalletConnected, isUsingDemoWallet } = useWallet();
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
   const [dateRange, setDateRange] = useState('6M');
   const [showBenchmark, setShowBenchmark] = useState(true);
@@ -27,11 +57,9 @@ const PerformanceAnalytics: React.FC = () => {
   const [showNormalizedData, setShowNormalizedData] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const fetchPerformanceData = useCallback(async () => {
-    if (!isAuthenticated) {
-      console.log('Not authenticated yet, skipping fetch');
+    if (!isWalletConnected && !isUsingDemoWallet) {
       return;
     }
 
@@ -43,8 +71,8 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get<PerformanceData[]>('http://192.168.0.103:5000/api/performance-analytics', {
-      //const response = await axios.get<PerformanceData[]>('http://192.168.1.123:5000/api/performance-analytics', {
+      const response = await axios.get<PerformanceData[]>('http://192.168.1.123:5000/api/performance-analytics', {
+      //const response = await axios.get<PerformanceData[]>('http://192.168.0.103:5000/api/performance-analytics', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -56,22 +84,13 @@ const PerformanceAnalytics: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchPerformanceData();
-    }
-  }, [isAuthenticated, fetchPerformanceData]);
+  }, [isWalletConnected, isUsingDemoWallet]);
 
   const handleUpdateData = async () => {
+    if (!isWalletConnected && !isUsingDemoWallet) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -80,8 +99,8 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      await axios.post('http://192.168.0.103:5000/api/performance-analytics/update', {}, {
-      //await axios.post('http://192.168.1.123:5000/api/performance-analytics/update', {}, {
+      await axios.post('http://192.168.1.123:5000/api/performance-analytics/update', {}, {
+      //await axios.post('http://192.168.0.103:5000/api/performance-analytics/update', {}, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -94,6 +113,17 @@ const PerformanceAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isWalletConnected || isUsingDemoWallet) {
+      fetchPerformanceData();
+      const intervalId = setInterval(fetchPerformanceData, 5 * 60 * 1000); // Refresh every 5 minutes
+      return () => clearInterval(intervalId);
+    } else {
+      setPerformanceData([]);
+      setIsLoading(false);
+    }
+  }, [isWalletConnected, isUsingDemoWallet, fetchPerformanceData]);
 
   const filteredData = useMemo(() => {
     const months = dateRange === '1Y' ? 12 : dateRange === '6M' ? 6 : dateRange === '3M' ? 3 : 36;
@@ -110,8 +140,6 @@ const PerformanceAnalytics: React.FC = () => {
     }));
   }, [filteredData]);
 
-  const chartData = showNormalizedData ? normalizedData : filteredData;
-
   const calculatePerformanceMetrics = useCallback((data: PerformanceData[]) => {
     if (data.length < 2) return { portfolioReturn: 0, benchmarkReturn: 0, alpha: 0, sharpeRatio: 0 };
 
@@ -119,15 +147,13 @@ const PerformanceAnalytics: React.FC = () => {
     const endValue = data[data.length - 1].totalValue;
     const portfolioReturn = ((endValue - startValue) / startValue) * 100;
 
-    // Placeholder for benchmark calculations
     const benchmarkReturn = 0;
     const alpha = portfolioReturn - benchmarkReturn;
 
-    // Simplified Sharpe Ratio calculation
     const returns = data.slice(1).map((d, i) => (d.totalValue - data[i].totalValue) / data[i].totalValue);
     const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
-    const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252); // Annualized Sharpe Ratio
+    const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252);
 
     return { portfolioReturn, benchmarkReturn, alpha, sharpeRatio };
   }, []);
@@ -142,15 +168,37 @@ const PerformanceAnalytics: React.FC = () => {
       const startDate = filteredData[newRange.startIndex].date;
       const endDate = filteredData[newRange.endIndex].date;
       console.log(`Custom range selected: ${startDate} to ${endDate}`);
-      // Here you can update state or perform any other action based on the selected range
     }
   }, [filteredData]);
 
-  useEffect(() => {
-    if (filteredData.length > 0) {
-      console.log("Start value:", filteredData[0].totalValue);
-    }
-  }, [filteredData]);
+  // Show placeholder when no wallet is connected
+  if (!isWalletConnected && !isUsingDemoWallet) {
+    return (
+      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg">
+        <div className="p-8">
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Performance Analytics</h2>
+          <WalletPlaceholder 
+            title="Connect Wallet to View Performance"
+            message="Please connect your wallet or use demo wallet to view your portfolio performance analytics and track your returns."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (isLoading && !performanceData.length) {
+    return (
+      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Performance Analytics</h2>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const chartData = showNormalizedData ? normalizedData : filteredData;
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
@@ -356,32 +404,5 @@ const PerformanceAnalytics: React.FC = () => {
     </div>
   );
 };
-
-interface MetricCardProps {
-  title: string;
-  value: string;
-  trend: 'up' | 'down';
-}
-
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend }) => (
-  <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
-    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{title}</h3>
-    <div className="flex items-baseline justify-between">
-      <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}%</p>
-      <span
-        className={`text-sm font-medium ${
-          trend === 'up' ? 'text-green-600' : 'text-red-600'
-        } flex items-center`}
-      >
-        {trend === 'up' ? (
-          <ArrowUpIcon className="h-5 w-5 mr-1" />
-        ) : (
-          <ArrowDownIcon className="h-5 w-5 mr-1" />
-        )}
-        {trend === 'up' ? 'Up' : 'Down'}
-      </span>
-    </div>
-  </div>
-);
 
 export default PerformanceAnalytics;

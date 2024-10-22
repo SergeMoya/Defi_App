@@ -13,7 +13,8 @@ interface PriceData {
   priceHistory: { timestamp: number; price: number }[];
 }
 
-const API_BASE_URL = 'http://192.168.0.103:5000'; // Replace with your actual API base URL
+const API_BASE_URL = 'http://192.168.1.123:5000'; 
+//const API_BASE_URL = 'http://192.168.0.103:5000'; 
 const REFRESH_INTERVAL = 300000; // 5 minute
 
 const PriceFeeds: React.FC = () => {

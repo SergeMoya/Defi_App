@@ -3,53 +3,51 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 
 interface AuthenticationProps {
-  onAuthSuccess: (token: string, userData: any) => void;
+  onAuthSuccess: (token: string, accountType?: 'personal' | 'demo') => void;
+  onError: (message: string) => void;
 }
 
-const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess }) => {
+const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
 
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const response = await axios.post(`http://localhost:5000${endpoint}`, { address, password });
-      const { token, user } = response.data;
+      const { token } = response.data;
       if (token) {
-        onAuthSuccess(token, user);
+        onAuthSuccess(token, 'personal');
       } else {
-        setError('Authentication failed. Please check your credentials and try again.');
+        onError('Authentication failed. Please check your credentials and try again.');
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      setError('Authentication failed. Please check your credentials and try again.');
+      onError('Authentication failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
-    setError('');
     setIsLoading(true);
 
     try {
       const response = await axios.post('http://localhost:5000/api/auth/login-demo');
-      const { token, user, portfolio, performanceAnalytics } = response.data;
+      const { token } = response.data;
       if (token) {
-        onAuthSuccess(token, { user, portfolio, performanceAnalytics });
+        onAuthSuccess(token, 'demo');
       } else {
-        setError('Demo login failed. Please try again.');
+        onError('Demo login failed. Please try again.');
       }
     } catch (err) {
       console.error('Demo login error:', err);
-      setError('Demo login failed. Please try again.');
+      onError('Demo login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +92,6 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess }) => {
             required
           />
         </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
           className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -106,8 +103,8 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess }) => {
       <div className="mt-4">
         <button
           onClick={handleDemoLogin}
-          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
           disabled={isLoading}
+          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
         >
           {isLoading ? 'Loading...' : 'Login with Demo Account'}
         </button>

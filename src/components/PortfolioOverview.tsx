@@ -4,6 +4,8 @@ import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, ArrowPathIcon, PlusIcon
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '../utils/formatters';
 import { motion } from 'framer-motion';
+import { useWallet } from '../context/WalletContext';
+import WalletPlaceholder from './common/WalletPlaceholder';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
@@ -22,6 +24,7 @@ interface PortfolioData {
 }
 
 const PortfolioOverview: React.FC = () => {
+  const { isWalletConnected, isUsingDemoWallet } = useWallet();
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,21 +53,63 @@ const PortfolioOverview: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPortfolioData();
-    const intervalId = setInterval(fetchPortfolioData, 5 * 60 * 1000); // Refresh every 5 minutes
-    return () => clearInterval(intervalId);
-  }, []);
+    if (isWalletConnected || isUsingDemoWallet) {
+      fetchPortfolioData();
+      const intervalId = setInterval(fetchPortfolioData, 5 * 60 * 1000); // Refresh every 5 minutes
+      return () => clearInterval(intervalId);
+    } else {
+      setPortfolioData(null);
+      setLoading(false);
+    }
+  }, [isWalletConnected, isUsingDemoWallet]);
+
+  // Show placeholder when no wallet is connected
+  if (!isWalletConnected && !isUsingDemoWallet) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg rounded-lg"
+      >
+        <div className="p-6">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Portfolio Overview</h3>
+          <WalletPlaceholder 
+            title="Connect Wallet to View Portfolio"
+            message="Please connect your wallet or use demo wallet to view your portfolio details and track your assets."
+          />
+        </div>
+      </motion.div>
+    );
+  }
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return (
+      <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg rounded-lg p-6">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Portfolio Overview</h3>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500 text-center">{error}</div>;
+    return (
+      <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg rounded-lg p-6">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Portfolio Overview</h3>
+        <div className="text-red-500 text-center p-4">{error}</div>
+      </div>
+    );
   }
 
   if (!portfolioData) {
-    return <div className="text-center">No portfolio data available.</div>;
+    return (
+      <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg rounded-lg p-6">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Portfolio Overview</h3>
+        <div className="text-center p-4">No portfolio data available.</div>
+      </div>
+    );
   }
 
   const { assets, totalValue, totalChange24h } = portfolioData;

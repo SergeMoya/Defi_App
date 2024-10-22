@@ -3,6 +3,9 @@ import axios from 'axios';
 import { ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '../utils/formatters';
+import { useWallet } from '../context/WalletContext';
+import WalletPlaceholder from './common/WalletPlaceholder';
+import { motion } from 'framer-motion';
 
 interface Transaction {
   _id: string;
@@ -23,6 +26,7 @@ interface TransactionResponse {
 }
 
 const TransactionHistory: React.FC = () => {
+  const { isWalletConnected, isUsingDemoWallet } = useWallet();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -43,9 +47,8 @@ const TransactionHistory: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-
-      //const response = await axios.get<TransactionResponse>('http://192.168.1.123:5000/api/transactions', {
-      const response = await axios.get<TransactionResponse>('http://192.168.0.103:5000/api/transactions', {
+      const response = await axios.get<TransactionResponse>('http://192.168.1.123:5000/api/transactions', {
+      //const response = await axios.get<TransactionResponse>('http://192.168.0.103:5000/api/transactions', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -70,8 +73,13 @@ const TransactionHistory: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, [currentPage, itemsPerPage, sortColumn, sortDirection, filter]);
+    if (isWalletConnected || isUsingDemoWallet) {
+      fetchTransactions();
+    } else {
+      setTransactions([]);
+      setIsLoading(false);
+    }
+  }, [currentPage, itemsPerPage, sortColumn, sortDirection, filter, isWalletConnected, isUsingDemoWallet]);
 
   const handleSort = (column: keyof Transaction) => {
     if (column === sortColumn) {
@@ -82,23 +90,63 @@ const TransactionHistory: React.FC = () => {
     }
   };
 
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  // Show placeholder when no wallet is connected
+  if (!isWalletConnected && !isUsingDemoWallet) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 shadow rounded-lg"
+      >
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">Transaction History</h2>
+          <WalletPlaceholder 
+            title="Connect Wallet to View Transactions"
+            message="Please connect your wallet or use demo wallet to view your transaction history."
+          />
+        </div>
+      </motion.div>
+    );
+  }
 
   const renderPagination = () => {
-    const pageNumbers = [];
-    for (let i = 1; i <= totalPages; i++) {
-      pageNumbers.push(i);
-    }
-
     return (
       <nav className="flex items-center justify-between mt-4">
-        {/* ... (pagination code remains the same) ... */}
+        <div className="flex items-center">
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Showing page {currentPage} of {totalPages} ({totalTransactions} total transactions)
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            <ChevronLeftIcon className="h-5 w-5" />
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            Next
+            <ChevronRightIcon className="h-5 w-5" />
+          </button>
+        </div>
       </nav>
     );
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-gray-800 shadow rounded-lg p-6"
+    >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Transaction History</h2>
         <div className="flex space-x-2">
@@ -122,10 +170,15 @@ const TransactionHistory: React.FC = () => {
           </select>
         </div>
       </div>
+
       {isLoading ? (
-        <div className="text-center py-4">Loading...</div>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+        </div>
       ) : error ? (
         <div className="text-center text-red-500 py-4">{error}</div>
+      ) : transactions.length === 0 ? (
+        <div className="text-center py-4 text-gray-500 dark:text-gray-400">No transactions found.</div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -193,7 +246,7 @@ const TransactionHistory: React.FC = () => {
           {renderPagination()}
         </>
       )}
-    </div>
+    </motion.div>
   );
 };
 

@@ -6,6 +6,7 @@ import { UserRequest } from '../types';
 interface DecodedToken {
   user: {
     id: string;
+    type: 'personal' | 'demo';
   };
   iat: number;
   exp: number;
@@ -14,23 +15,21 @@ interface DecodedToken {
 export const authMiddleware = (req: UserRequest, res: Response, next: NextFunction) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
 
-  console.log('Received token:', token);
-
   if (!token) {
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
 
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET) as DecodedToken;
-    console.log('Decoded token:', decoded);
 
-    if (!decoded.user || !decoded.user.id) {
-      console.log('Invalid token structure');
+    if (!decoded.user || !decoded.user.id || !decoded.user.type) {
       return res.status(401).json({ message: 'Invalid token structure' });
     }
 
-    req.user = { id: decoded.user.id };
-    console.log('Set user:', req.user);
+    req.user = {
+      id: decoded.user.id,
+      type: decoded.user.type
+    };
 
     next();
   } catch (err) {

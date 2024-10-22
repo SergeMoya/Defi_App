@@ -9,29 +9,34 @@ import authRoutes from './routes/auth_route';
 import performanceAnalyticsRoutes from './routes/performanceAnalytics_route';
 import { getPriceData } from './services/priceFeedService';
 
-
 const app = express();
 
-// Middleware
+// Security middleware
 app.use(cors());
 app.use(express.json());
+app.disable('x-powered-by'); // Remove Express header
 
-// MongoDB connection
-const connectDB = async () => {
-  try {
-    console.log('Attempting to connect to MongoDB...');
-    console.log('Connection string:', config.MONGODB_URI);
-    
-    if (!config.MONGODB_URI) {
-      throw new Error('MONGODB_URI is not defined in the environment variables');
+// MongoDB connection with retry logic
+const connectDB = async (retries = 5) => {
+  while (retries > 0) {
+    try {
+      if (config.NODE_ENV === 'development') {
+        console.log('Attempting to connect to MongoDB...');
+      }
+      
+      await mongoose.connect(config.MONGODB_URI);
+      
+      console.log('Connected to MongoDB successfully');
+      return;
+    } catch (error) {
+      retries -= 1;
+      if (retries === 0) {
+        console.error('Failed to connect to MongoDB after multiple attempts:', error);
+        process.exit(1);
+      }
+      console.log(`Connection failed. Retrying... (${retries} attempts remaining)`);
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before retrying
     }
-    
-    await mongoose.connect(config.MONGODB_URI);
-    
-    console.log('Connected to MongoDB successfully');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
   }
 };
 
@@ -43,38 +48,55 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/performance-analytics', performanceAnalyticsRoutes);
 
 app.get('/', (req, res) => {
-  res.send('DeFi Dashboard API');
+  res.json({ message: 'DeFi Dashboard API' });
 });
 
-// New test endpoint for price data
+// Test endpoint with better error handling
 app.get('/api/test-price-data', async (req, res) => {
   try {
-    console.log('Fetching price data...');
     const priceData = await getPriceData();
-    console.log('Price data fetched:', priceData);
     res.json(priceData);
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error fetching price data:', error);
-    if (error instanceof Error) {
-      res.status(500).json({ message: 'Error fetching price data', error: error.message });
-    } else {
-      res.status(500).json({ message: 'An unknown error occurred while fetching price data' });
-    }
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Failed to fetch price data',
+      error: config.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'
+    });
   }
 });
+
+// Graceful shutdown handling
+const gracefulShutdown = async () => {
+  try {
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Start the server
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(config.PORT, () => {
-      console.log(`Server is running on port ${config.PORT}`);
+    const server = app.listen(config.PORT, () => {
+      console.log(`Server is running on port ${config.PORT} in ${config.NODE_ENV} mode`);
     });
-  } catch (error: unknown) {
+
+    // Handle unhandled rejections
+    process.on('unhandledRejection', (error) => {
+      console.error('Unhandled Rejection:', error);
+      server.close(() => process.exit(1));
+    });
+
+  } catch (error) {
     console.error('Failed to start the server:', error);
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
     process.exit(1);
   }
 };
