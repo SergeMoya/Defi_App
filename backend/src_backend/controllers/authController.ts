@@ -12,11 +12,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     let user = await User.findOne({ address });
 
     if (user) {
-      res.status(400).json({ msg: 'User already exists' });
+      res.status(400).json({ message: 'User already exists' });
       return;
     }
 
-    user = new User({ address });
+    user = new User({
+      address,
+      accountType: 'personal'
+    });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
@@ -26,6 +29,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const payload = {
       user: {
         id: user.id,
+        type: user.accountType
       },
     };
 
@@ -35,12 +39,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '48h' },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ token, accountType: user.accountType });
       }
     );
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Server error');
+    console.error('Error in register:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -51,20 +55,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     let user = await User.findOne({ address });
 
     if (!user) {
-      res.status(400).json({ msg: 'Invalid Credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
       return;
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      res.status(400).json({ msg: 'Invalid Credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
       return;
     }
 
     const payload = {
       user: {
         id: user.id,
+        type: user.accountType
       },
     };
 
@@ -74,12 +79,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '48h' },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ token, accountType: user.accountType });
       }
     );
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Server error');
+    console.error('Error in login:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -94,22 +99,20 @@ export const loginDemo = async (req: Request, res: Response): Promise<void> => {
       // Create the demo user if it doesn't exist
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(demoPassword, salt);
-      user = new User({ address: demoAddress, password: hashedPassword });
+      user = new User({
+        address: demoAddress,
+        password: hashedPassword,
+        accountType: 'demo'
+      });
       await user.save();
     }
 
-    const isMatch = await bcrypt.compare(demoPassword, user.password);
-
-    if (!isMatch) {
-      res.status(400).json({ msg: 'Invalid Demo Credentials' });
-      return;
-    }
-
-    const { portfolio, performanceAnalytics, transactions } = await getOrCreateDemoUser(user.id);
+    const { portfolio, performanceAnalytics } = await getOrCreateDemoUser(user.id);
 
     const payload = {
       user: {
         id: user.id,
+        type: 'demo'
       },
     };
 
@@ -121,15 +124,24 @@ export const loginDemo = async (req: Request, res: Response): Promise<void> => {
         if (err) throw err;
         res.json({
           token,
-          user: { id: user.id, email: user.address },
+          accountType: 'demo',
           portfolio,
-          performanceAnalytics,
-          transactions,
+          performanceAnalytics
         });
       }
     );
   } catch (error) {
     console.error('Error in loginDemo:', error);
     res.status(500).json({ message: 'Server error', error: (error as Error).message });
+  }
+};
+
+// Middleware to verify token and extract user info
+export const verifyToken = (token: string): { id: string; type: string } | null => {
+  try {
+    const decoded = jwt.verify(token, config.JWT_SECRET) as { user: { id: string; type: string } };
+    return decoded.user;
+  } catch (err) {
+    return null;
   }
 };

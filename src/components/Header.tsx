@@ -9,10 +9,10 @@ import { Snackbar, Alert } from '@mui/material';
 interface HeaderProps {
   isAuthenticated: boolean;
   onLogout: () => void;
-  onDemoAuthSuccess: (token: string) => void;
+  accountType: 'personal' | 'demo';
 }
 
-const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSuccess }) => {
+const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, accountType }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -84,20 +84,14 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
     try {
       setIsDemoLoading(true);
       setError(null);
-
-      const response = await axios.post('http://localhost:5000/api/auth/try-demo');
-      const { token } = response.data;
-
-      if (token) {
-        localStorage.setItem('token', token);
-        onDemoAuthSuccess(token);
-      } else {
-        setError('Demo authentication failed. Please try again.');
-        setSnackbarOpen(true);
-      }
+      
+      // Set demo wallet address directly
+      const demoAddress = '0xDEMO1234567890DeFiDashboardDemo1234567890';
+      setWalletAddress(demoAddress);
+      
     } catch (err) {
-      console.error('Demo authentication error:', err);
-      setError('Demo authentication failed. Please try again.');
+      console.error('Error using demo wallet:', err);
+      setError('Failed to use demo wallet');
       setSnackbarOpen(true);
     } finally {
       setIsDemoLoading(false);
@@ -173,15 +167,17 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, onDemoAuthSu
                       <WalletIcon className="h-5 w-5 mr-2" />
                       {isConnecting ? 'Connecting...' : 'Connect Wallet'}
                     </button>
-                    <button
-                      onClick={handleDemoWallet}
-                      disabled={isDemoLoading}
-                      className={`px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out ${
-                        isDemoLoading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {isDemoLoading ? 'Loading...' : 'Use Demo Wallet'}
-                    </button>
+                    {accountType === 'demo' && (
+                      <button
+                        onClick={handleDemoWallet}
+                        disabled={isDemoLoading}
+                        className={`px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out ${
+                          isDemoLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {isDemoLoading ? 'Loading...' : 'Use Demo Wallet'}
+                      </button>
+                    )}
                   </div>
                 )}
               </>

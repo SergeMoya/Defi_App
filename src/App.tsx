@@ -3,44 +3,87 @@ import Header from './components/Header';
 import MainContent from './components/MainContent';
 import Footer from './components/Footer';
 import Authentication from './components/Authentication';
+import WalletAuthProvider from './components/providers/WalletAuthProvider';
+import { Alert, Snackbar } from '@mui/material';
+
+interface AuthData {
+  token: string;
+  accountType: 'personal' | 'demo';
+}
 
 const App: React.FC = () => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [auth, setAuth] = useState<AuthData | null>(() => {
+    const token = localStorage.getItem('token');
+    const accountType = localStorage.getItem('accountType') as 'personal' | 'demo';
+    return token ? { token, accountType: accountType || 'personal' } : null;
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
+    if (auth) {
+      localStorage.setItem('token', auth.token);
+      localStorage.setItem('accountType', auth.accountType);
     } else {
       localStorage.removeItem('token');
+      localStorage.removeItem('accountType');
     }
-  }, [token]);
+  }, [auth]);
 
-  const handleAuthSuccess = (newToken: string) => {
-    setToken(newToken);
+  const handleAuthSuccess = (token: string, accountType: 'personal' | 'demo' = 'personal') => {
+    setAuth({ token, accountType });
   };
 
   const handleLogout = () => {
-    setToken(null);
+    setAuth(null);
+  };
+
+  const handleError = (message: string) => {
+    setError(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {token ? (
-        <>
-          <Header 
-            isAuthenticated={true} 
-            onLogout={handleLogout} 
-            onDemoAuthSuccess={handleAuthSuccess} 
-          />
-          <MainContent />
-        </>
-      ) : (
-        <div className="flex-grow flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-          <Authentication onAuthSuccess={handleAuthSuccess} />
-        </div>
-      )}
-      <Footer />
-    </div>
+    <WalletAuthProvider>
+      <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+        {auth ? (
+          <>
+            <Header 
+              isAuthenticated={true} 
+              onLogout={handleLogout}
+              accountType={auth.accountType}
+            />
+            <MainContent />
+          </>
+        ) : (
+          <div className="flex-grow flex items-center justify-center">
+            <Authentication 
+              onAuthSuccess={handleAuthSuccess}
+              onError={handleError}
+            />
+          </div>
+        )}
+        <Footer />
+
+        <Snackbar 
+          open={snackbarOpen} 
+          autoHideDuration={6000} 
+          onClose={handleSnackbarClose}
+        >
+          <Alert 
+            onClose={handleSnackbarClose} 
+            severity="error" 
+            sx={{ width: '100%' }}
+          >
+            {error}
+          </Alert>
+        </Snackbar>
+      </div>
+    </WalletAuthProvider>
   );
 };
 
