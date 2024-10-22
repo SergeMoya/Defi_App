@@ -4,31 +4,41 @@ import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import rateLimit from 'axios-rate-limit';
 import NodeCache from 'node-cache';
 import { CoinData, CoinHistory } from './priceFeedService';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Environment variables with fallbacks
+const {
+  API_BASE_URL = 'https://api.coingecko.com/api/v3',
+  API_TIMEOUT = '10000',
+  MAX_REQUESTS_PER_SECOND = '10',
+  MAX_REQUESTS_PER_MINUTE = '50',
+  MAX_RETRIES = '3',
+  MIN_RETRY_DELAY = '1000',
+  MAX_RETRY_DELAY = '30000',
+  CACHE_DEFAULT_TTL = '60',
+  CACHE_CHECK_PERIOD = '120',
+  CACHE_TOP_COINS_TTL = '300',
+  CACHE_COIN_HISTORY_TTL = '300'
+} = process.env;
 
 // Configure cache with different TTLs for different endpoints
 const cache = new NodeCache({
-  stdTTL: 60, // Default TTL in seconds
-  checkperiod: 120, // Cleanup interval
+  stdTTL: parseInt(CACHE_DEFAULT_TTL),
+  checkperiod: parseInt(CACHE_CHECK_PERIOD),
   useClones: false,
 });
 
-// Rate limit configuration
-const MAX_REQUESTS_PER_SECOND = 10;
-const MAX_REQUESTS_PER_MINUTE = 50;
-
 // Configure axios with rate limiting
 const http = rateLimit(axios.create({
-  baseURL: 'https://api.coingecko.com/api/v3',
-  timeout: 10000,
+  baseURL: API_BASE_URL,
+  timeout: parseInt(API_TIMEOUT),
 }), {
-  maxRequests: MAX_REQUESTS_PER_SECOND,
+  maxRequests: parseInt(MAX_REQUESTS_PER_SECOND),
   perMilliseconds: 1000,
 });
-
-// Retry configuration
-const MAX_RETRIES = 3;
-const MIN_RETRY_DELAY = 1000; // 1 second
-const MAX_RETRY_DELAY = 30000; // 30 seconds
 
 interface ApiConfig extends AxiosRequestConfig {
   cacheKey?: string;
@@ -39,9 +49,9 @@ interface ApiConfig extends AxiosRequestConfig {
 // Custom retry logic with exponential backoff
 async function retry<T>(
   fn: () => Promise<T>,
-  retries: number = MAX_RETRIES,
-  minDelay: number = MIN_RETRY_DELAY,
-  maxDelay: number = MAX_RETRY_DELAY
+  retries: number = parseInt(MAX_RETRIES),
+  minDelay: number = parseInt(MIN_RETRY_DELAY),
+  maxDelay: number = parseInt(MAX_RETRY_DELAY)
 ): Promise<T> {
   let lastError: Error = new Error('Operation failed after maximum retries');
   
@@ -98,7 +108,7 @@ class EnhancedApiService {
 
   private async makeRequest<T>(config: ApiConfig): Promise<T> {
     // Check rate limits
-    if (this.requestCount >= MAX_REQUESTS_PER_MINUTE) {
+    if (this.requestCount >= parseInt(MAX_REQUESTS_PER_MINUTE)) {
       const timeToWait = 60000 - (Date.now() - this.lastResetTime);
       throw new Error(`Rate limit exceeded. Please wait ${timeToWait}ms`);
     }
@@ -140,7 +150,7 @@ class EnhancedApiService {
         sparkline: false,
       },
       cacheKey,
-      cacheTTL: 300, // Cache for 5 minutes
+      cacheTTL: parseInt(CACHE_TOP_COINS_TTL),
     });
   }
 
@@ -155,7 +165,7 @@ class EnhancedApiService {
         days: days.toString(),
       },
       cacheKey,
-      cacheTTL: 300, // Cache for 5 minutes
+      cacheTTL: parseInt(CACHE_COIN_HISTORY_TTL),
     });
   }
 

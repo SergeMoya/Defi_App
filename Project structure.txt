@@ -1,17 +1,3 @@
-"I'm working on a fintech application with two types of user accounts: personal and demo. The application requires a wallet connection to display data in sections like portfolio and performance analytics. However, I'm facing an issue where, upon logging in without connecting a wallet, data is already displayed in these sections. The intended behavior is that data should only be displayed after the user connects their wallet.
-
-Here's the context:
-
-For personal accounts, the header on the dashboard should only display a "Connect Wallet" button.
-For demo accounts, the header displays both a "Connect Wallet" button and a "Use Wallet" button.
-The user can select "Use Wallet" to display demo data in demo mode, but real data should only be displayed once the wallet is connected.
-I would like to have a placeholder message in these sections saying something like "Please connect a wallet to see the data" to provide better feedback to users when the wallet is not yet connected. I need guidance on implementing this behavior efficiently to ensure that no data is prematurely displayed without a connected wallet, and placeholders are shown instead."
-
-
-Belowv is  my current project structure 
-
-
-
 backend
 backend\node_modules
 backend\src_backend
@@ -37,6 +23,7 @@ backend\src_backend\routes\portfolio_route.ts
 backend\src_backend\routes\priceFeed_route.ts
 backend\src_backend\routes\transaction_route.ts
 backend\src_backend\services
+backend\src_backend\services\apiService.ts
 backend\src_backend\services\demoUserService.ts
 backend\src_backend\services\priceFeedService.ts
 backend\src_backend\utils
@@ -50,10 +37,18 @@ backend\package.json
 backend\tsconfig.json
 node_modules
 public
+public\favicon.ico
+public\index.html
+public\logo192.png
+public\logo512.png
+public\manifest.json
+public\robots.txt
 src
 src\assets
 src\assets\acare_logo.png
 src\components
+src\components\common
+src\components\common\WalletPlaceholder.tsx
 src\components\components_portofolio
 src\components\components_portofolio\AddAssetModal.tsx
 src\components\providers
@@ -67,7 +62,10 @@ src\components\PortfolioOverview.tsx
 src\components\PriceFeeds.tsx
 src\components\Sidebar.tsx
 src\components\TransactionHistory.tsx
+src\context
+src\context\WalletContext.tsx
 src\utils
+src\utils\formatters.ts
 src\App.test.tsx
 src\App.tsx
 src\global.d.ts
