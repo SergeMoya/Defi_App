@@ -13,9 +13,11 @@ interface PriceData {
   priceHistory: { timestamp: number; price: number }[];
 }
 
-const API_BASE_URL = 'http://192.168.1.123:5000'; 
-//const API_BASE_URL = 'http://192.168.0.103:5000'; 
-const REFRESH_INTERVAL = 300000; // 5 minute
+// Environment variables
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const PRICE_FEED_ENDPOINT = process.env.REACT_APP_PRICE_FEED_ENDPOINT;
+const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000; // Default to 5 minutes
+const MAX_PRICE_COUNT = Number(process.env.REACT_APP_MAX_PRICE_COUNT) || 5;
 
 const PriceFeeds: React.FC = () => {
   const [prices, setPrices] = useState<PriceData[]>([]);
@@ -33,12 +35,12 @@ const PriceFeeds: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get<PriceData[]>(`${API_BASE_URL}/api/price-feed`, {
+      const response = await axios.get<PriceData[]>(`${API_BASE_URL}${PRICE_FEED_ENDPOINT}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: { count: 5 }
+        params: { count: MAX_PRICE_COUNT }
       });
 
       setPrices(response.data);
@@ -62,7 +64,7 @@ const PriceFeeds: React.FC = () => {
 
   useEffect(() => {
     fetchPrices();
-    const interval = setInterval(fetchPrices, REFRESH_INTERVAL);
+    const interval = setInterval(fetchPrices, DATA_REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchPrices]);
 

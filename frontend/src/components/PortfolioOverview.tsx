@@ -7,6 +7,11 @@ import { motion } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
 import WalletPlaceholder from './common/WalletPlaceholder';
 
+// Environment variables
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const PORTFOLIO_ENDPOINT = process.env.REACT_APP_PORTFOLIO_ENDPOINT;
+const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000; // 5 minutes in milliseconds
+
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 interface AssetData {
@@ -37,7 +42,7 @@ const PortfolioOverview: React.FC = () => {
       if (!token) {
         throw new Error('No authentication token found');
       }
-      const response = await axios.get<PortfolioData>('http://localhost:5000/api/portfolio', {
+      const response = await axios.get<PortfolioData>(`${API_BASE_URL}${PORTFOLIO_ENDPOINT}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -55,7 +60,7 @@ const PortfolioOverview: React.FC = () => {
   useEffect(() => {
     if (isWalletConnected || isUsingDemoWallet) {
       fetchPortfolioData();
-      const intervalId = setInterval(fetchPortfolioData, 5 * 60 * 1000); // Refresh every 5 minutes
+      const intervalId = setInterval(fetchPortfolioData, DATA_REFRESH_INTERVAL);
       return () => clearInterval(intervalId);
     } else {
       setPortfolioData(null);

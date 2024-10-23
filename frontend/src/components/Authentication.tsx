@@ -18,8 +18,9 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
     setIsLoading(true);
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const response = await axios.post(`http://localhost:5000${endpoint}`, { address, password });
+      const endpoint = isLogin ? process.env.REACT_APP_LOGIN_ENDPOINT : process.env.REACT_APP_REGISTER_ENDPOINT;
+      const baseUrl = process.env.REACT_APP_API_BASE_URL;
+      const response = await axios.post(`${baseUrl}${endpoint}`, { address, password });
       const { token } = response.data;
       if (token) {
         onAuthSuccess(token, 'personal');
@@ -38,7 +39,9 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login-demo');
+      const baseUrl = process.env.REACT_APP_API_BASE_URL;
+      const demoEndpoint = process.env.REACT_APP_DEMO_LOGIN_ENDPOINT;
+      const response = await axios.post(`${baseUrl}${demoEndpoint}`);
       const { token } = response.data;
       if (token) {
         onAuthSuccess(token, 'demo');

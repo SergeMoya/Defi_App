@@ -27,6 +27,11 @@ interface MetricCardProps {
   trend: 'up' | 'down';
 }
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const PERFORMANCE_ENDPOINT = process.env.REACT_APP_PERFORMANCE_ENDPOINT;
+const PERFORMANCE_UPDATE_ENDPOINT = process.env.REACT_APP_PERFORMANCE_UPDATE_ENDPOINT;
+const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000; // Default to 5 minutes
+
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend }) => (
   <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
     <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{title}</h3>
@@ -71,8 +76,7 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get<PerformanceData[]>('http://192.168.1.123:5000/api/performance-analytics', {
-      //const response = await axios.get<PerformanceData[]>('http://192.168.0.103:5000/api/performance-analytics', {
+      const response = await axios.get<PerformanceData[]>(`${API_BASE_URL}${PERFORMANCE_ENDPOINT}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -99,8 +103,7 @@ const PerformanceAnalytics: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      await axios.post('http://192.168.1.123:5000/api/performance-analytics/update', {}, {
-      //await axios.post('http://192.168.0.103:5000/api/performance-analytics/update', {}, {
+      await axios.post(`${API_BASE_URL}${PERFORMANCE_UPDATE_ENDPOINT}`, {}, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -117,7 +120,7 @@ const PerformanceAnalytics: React.FC = () => {
   useEffect(() => {
     if (isWalletConnected || isUsingDemoWallet) {
       fetchPerformanceData();
-      const intervalId = setInterval(fetchPerformanceData, 5 * 60 * 1000); // Refresh every 5 minutes
+      const intervalId = setInterval(fetchPerformanceData, DATA_REFRESH_INTERVAL);
       return () => clearInterval(intervalId);
     } else {
       setPerformanceData([]);
@@ -171,7 +174,6 @@ const PerformanceAnalytics: React.FC = () => {
     }
   }, [filteredData]);
 
-  // Show placeholder when no wallet is connected
   if (!isWalletConnected && !isUsingDemoWallet) {
     return (
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg">
@@ -186,7 +188,6 @@ const PerformanceAnalytics: React.FC = () => {
     );
   }
 
-  // Show loading state
   if (isLoading && !performanceData.length) {
     return (
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
