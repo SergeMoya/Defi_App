@@ -6,6 +6,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useWallet } from '../context/WalletContext';
 import WalletPlaceholder from './common/WalletPlaceholder';
 import { motion } from 'framer-motion';
+import CreditCardIllustration from '../assets/credit_card.svg';
 
 interface Transaction {
   _id: string;
@@ -47,18 +48,20 @@ const TransactionHistory: React.FC = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get<TransactionResponse>('http://192.168.1.123:5000/api/transactions', {
-      //const response = await axios.get<TransactionResponse>('http://192.168.0.103:5000/api/transactions', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        params: {
-          page: currentPage,
-          limit: itemsPerPage,
-          sort: `${sortDirection === 'asc' ? '' : '-'}${sortColumn}`,
-          filter: filter === 'all' ? undefined : filter,
-        },
-      });
+      const response = await axios.get<TransactionResponse>(
+        `${process.env.REACT_APP_API_BASE_URL}${process.env.REACT_APP_TRANSACTIONS_ENDPOINT}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: {
+            page: currentPage,
+            limit: itemsPerPage,
+            sort: `${sortDirection === 'asc' ? '' : '-'}${sortColumn}`,
+            filter: filter === 'all' ? undefined : filter,
+          },
+        }
+      );
 
       setTransactions(response.data.transactions);
       setCurrentPage(response.data.currentPage);
@@ -90,21 +93,36 @@ const TransactionHistory: React.FC = () => {
     }
   };
 
-  // Show placeholder when no wallet is connected
   if (!isWalletConnected && !isUsingDemoWallet) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-white dark:bg-gray-800 shadow rounded-lg"
+        className="bg-white dark:bg-gray-800 shadow-lg rounded-lg"
       >
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">Transaction History</h2>
-          <WalletPlaceholder 
-            title="Connect Wallet to View Transactions"
-            message="Please connect your wallet or use demo wallet to view your transaction history."
-          />
+        <div className="p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex flex-col justify-center">
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+                Transaction History
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                View and track all your cryptocurrency transactions in one place
+              </p>
+              <WalletPlaceholder 
+                title="Connect Wallet to View Transactions"
+                message="Please connect your wallet or use demo wallet to view your transaction history and track your trading activity."
+              />
+            </div>
+            <div className="hidden lg:flex justify-center items-center">
+              <img
+                src={CreditCardIllustration}
+                alt="Transaction History"
+                className="w-full max-w-md"
+              />
+            </div>
+          </div>
         </div>
       </motion.div>
     );

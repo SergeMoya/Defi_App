@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowUpIcon, ArrowDownIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import axios from 'axios';
+import { cryptoPriceService, CryptoPrice } from '../services/CryptoPriceService';
+import { motion } from 'framer-motion';
+import ErrorData from '../assets/error_real_time_api.svg';
 
 interface PriceData {
   symbol: string;
@@ -13,60 +15,45 @@ interface PriceData {
   priceHistory: { timestamp: number; price: number }[];
 }
 
-// Environment variables
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-const PRICE_FEED_ENDPOINT = process.env.REACT_APP_PRICE_FEED_ENDPOINT;
-const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000; // Default to 5 minutes
-const MAX_PRICE_COUNT = Number(process.env.REACT_APP_MAX_PRICE_COUNT) || 5;
-
 const PriceFeeds: React.FC = () => {
   const [prices, setPrices] = useState<PriceData[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPrices = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await axios.get<PriceData[]>(`${API_BASE_URL}${PRICE_FEED_ENDPOINT}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        params: { count: MAX_PRICE_COUNT }
-      });
-
-      setPrices(response.data);
-    } catch (err) {
-      console.error('Error fetching price data:', err);
-      if (axios.isAxiosError(err)) {
-        if (err.response?.status === 401) {
-          setError('Authentication failed. Please log in again.');
-        } else if (err.response?.status === 429) {
-          setError('Rate limit exceeded. Please try again later.');
-        } else {
-          setError('Failed to fetch price data. Please try again.');
-        }
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchPrices();
-    const interval = setInterval(fetchPrices, DATA_REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchPrices]);
+    // Subscribe to price updates
+    const subscription = cryptoPriceService.getPricesObservable().subscribe({
+      next: (cryptoPrices: CryptoPrice[]) => {
+        const transformedPrices: PriceData[] = cryptoPrices.map(cp => ({
+          symbol: cp.symbol.toUpperCase(),
+          price: cp.current_price,
+          change24h: cp.price_change_percentage_24h,
+          volume24h: cp.total_volume,
+          marketCap: cp.market_cap,
+          priceHistory: [],
+        }));
+        setPrices(transformedPrices);
+        setIsLoading(false);
+      },
+      error: (err: Error | unknown) => {
+        console.error('Error in price subscription:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch price data. Please try again.');
+        setIsLoading(false);
+      }
+    });
+
+    // Trigger initial price fetch
+    cryptoPriceService.refreshPrices().catch((err: Error | unknown) => {
+      console.error('Error refreshing prices:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch initial price data.');
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const formatLargeNumber = (num: number): string => {
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
@@ -100,20 +87,42 @@ const PriceFeeds: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-        <strong className="font-bold">Error: </strong>
-        <span className="block sm:inline">{error}</span>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 shadow-lg rounded-lg h-full min-h-[300px]"
+      >
+        <div className="p-8 h-full flex flex-col justify-center items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div className="flex flex-col justify-center">
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+                Error Loading Price Data
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {error}
+              </p>
+            </div>
+            <div className="flex justify-center items-center">
+              <img
+                src={ErrorData}
+                alt="Error Loading Data"
+                className="w-full max-w-md"
+              />
+            </div>
+          </div>
+        </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+    <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8 min-h-[300px]">
       <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Price Feeds</h2>
       <div className="space-y-4">
         {prices.map((price) => (
-          <div key={price.symbol} className="border-b border-gray-200 dark:border-gray-700 pb-4">
-            <div className="flex items-center justify-between mb-2">
+          <div key={price.symbol} className="border-b border-gray-200 dark:border-gray-700 pb-8">
+            <div className="flex items-center justify-between mb-4">
               <span className="text-lg font-medium text-gray-900 dark:text-gray-100">{price.symbol}</span>
               <div className="text-right">
                 <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -129,7 +138,7 @@ const PriceFeeds: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
               <span>Volume 24h: {formatLargeNumber(price.volume24h)}</span>
               <span>Market Cap: {formatLargeNumber(price.marketCap)}</span>
             </div>
