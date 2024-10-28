@@ -1,68 +1,62 @@
-import { sleep } from './helpers';
+// backend/src_backend/utils/rateLimiter.ts
+
+import NodeCache from 'node-cache';
+import { sleep, backoffDelay } from './helpers';
 
 export class RateLimiter {
-  private timestamps: number[] = [];
-  private readonly windowMs: number;
-  private readonly maxRequests: number;
+  private cache: NodeCache;
+  private readonly maxRequests = 30; // Reduce max requests to be safer
+  private readonly windowMs = 60000; // 1 minute window
+  private readonly minInterval = 2000; // Increase minimum interval between requests
+  private lastRequestTime = 0;
+  private retryQueue: Map<string, number> = new Map();
 
-  constructor(windowMs: number = 60000, maxRequests: number = 50) {
-    this.windowMs = windowMs;
-    this.maxRequests = maxRequests;
+  constructor() {
+    this.cache = new NodeCache({
+      stdTTL: 60,
+      checkperiod: 120,
+      useClones: false
+    });
   }
 
-  async throttle(): Promise<void> {
+  async checkRateLimit(key: string = 'global'): Promise<void> {
     const now = Date.now();
-    
-    // Remove timestamps outside the window
-    this.timestamps = this.timestamps.filter(
-      timestamp => now - timestamp < this.windowMs
-    );
+    const requests = this.cache.get<number>(key) || 0;
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    const retryAfter = this.retryQueue.get(key);
 
-    if (this.timestamps.length >= this.maxRequests) {
-      const oldestTimestamp = this.timestamps[0];
-      const waitTime = oldestTimestamp + this.windowMs - now;
-      if (waitTime > 0) {
-        await sleep(waitTime);
-      }
-      this.timestamps = this.timestamps.slice(1);
+    // Check if we're in retry period
+    if (retryAfter && now < retryAfter) {
+      const waitTime = retryAfter - now;
+      throw new Error(`rate limit exceeded:${Math.ceil(waitTime / 1000)}`);
     }
 
-    this.timestamps.push(now);
+    // Enforce minimum interval between requests
+    if (timeSinceLastRequest < this.minInterval) {
+      await sleep(this.minInterval - timeSinceLastRequest);
+    }
+
+    // Check if we're at the rate limit
+    if (requests >= this.maxRequests) {
+      const waitTime = this.windowMs - (now - this.lastRequestTime);
+      this.retryQueue.set(key, now + waitTime);
+      console.log(`Rate limit reached for ${key}. Waiting ${waitTime}ms`);
+      throw new Error(`rate limit exceeded:${Math.ceil(waitTime / 1000)}`);
+    }
+
+    // Update counters
+    this.cache.set(key, requests + 1);
+    this.lastRequestTime = now;
+
+    // Reset counter after window
+    setTimeout(() => {
+      this.cache.set(key, 0);
+      this.retryQueue.delete(key);
+    }, this.windowMs);
   }
 
-  async withRetry<T>(
-    fn: () => Promise<T>,
-    maxRetries: number = 3,
-    initialDelay: number = 1000
-  ): Promise<T> {
-    let retries = 0;
-    let delay = initialDelay;
-
-    while (true) {
-      try {
-        await this.throttle();
-        return await fn();
-      } catch (error: any) {
-        if (
-          retries >= maxRetries ||
-          (error?.response?.status !== 429 && error?.response?.status !== 503)
-        ) {
-          throw error;
-        }
-
-        retries++;
-        // Exponential backoff with jitter
-        delay = Math.min(delay * 2 + Math.random() * 1000, 30000);
-        
-        if (error?.response?.headers['retry-after']) {
-          const retryAfter = parseInt(error.response.headers['retry-after']) * 1000;
-          delay = Math.max(delay, retryAfter);
-        }
-
-        console.log(`Rate limit exceeded. Retrying in ${delay}ms... (Attempt ${retries})`);
-        await sleep(delay);
-      }
-    }
+  getRequestCount(key: string = 'global'): number {
+    return this.cache.get<number>(key) || 0;
   }
 }
 

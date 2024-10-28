@@ -1,6 +1,7 @@
+// frontend/src/services/CryptoPriceService.ts
+
 import axios from 'axios';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { retry, delay } from 'rxjs/operators';
 
 export interface CryptoPrice {
   id: string;
@@ -25,7 +26,7 @@ class CryptoPriceService {
   private status: BehaviorSubject<ServiceStatus>;
   private errorSubject: Subject<Error>;
   private lastFetchTime: number = 0;
-  private readonly REFRESH_INTERVAL = 60000; // 1 minute
+  private readonly MIN_FETCH_INTERVAL = 30000; // 30 seconds
   private readonly API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   private isLoading = false;
   private retryTimeout: NodeJS.Timeout | null = null;
@@ -46,17 +47,16 @@ class CryptoPriceService {
 
   private async initializeDataFetching() {
     await this.fetchPrices();
-    setInterval(() => this.fetchPrices(), this.REFRESH_INTERVAL);
+    setInterval(() => {
+      if (Date.now() - this.lastFetchTime >= this.MIN_FETCH_INTERVAL) {
+        this.fetchPrices();
+      }
+    }, this.MIN_FETCH_INTERVAL);
   }
 
   private async fetchPrices() {
     if (this.isLoading) return;
     
-    const now = Date.now();
-    if (now - this.lastFetchTime < this.REFRESH_INTERVAL) {
-      return;
-    }
-  
     try {
       this.isLoading = true;
       this.status.next({ status: 'loading' });
@@ -72,9 +72,8 @@ class CryptoPriceService {
   
       this.prices.next(response.data);
       this.status.next({ status: 'idle' });
-      this.lastFetchTime = now;
+      this.lastFetchTime = Date.now();
       
-      // Clear any existing retry timeout
       if (this.retryTimeout) {
         clearTimeout(this.retryTimeout);
         this.retryTimeout = null;
@@ -95,11 +94,9 @@ class CryptoPriceService {
             retryAfter
           });
 
-          // Schedule retry
           this.retryTimeout = setTimeout(() => {
             this.fetchPrices();
           }, retryAfter);
-
         } else {
           this.status.next({ 
             status: 'error',
@@ -146,10 +143,12 @@ class CryptoPriceService {
   }
 
   public async refreshPrices() {
-    return this.fetchPrices();
+    if (Date.now() - this.lastFetchTime >= this.MIN_FETCH_INTERVAL) {
+      return this.fetchPrices();
+    }
   }
 
-  public clearRetryTimeout() {
+  public cleanup() {
     if (this.retryTimeout) {
       clearTimeout(this.retryTimeout);
       this.retryTimeout = null;

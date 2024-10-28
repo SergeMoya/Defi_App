@@ -1,23 +1,31 @@
-// src/routes/priceFeed_route.ts
+// In your routes/priceFeed_route.ts
 
 import express from 'express';
 import { getPriceFeeds } from '../controllers/priceFeedController';
 import { authMiddleware } from '../middleware/auth';
-import { UserRequest } from '../types'; 
+import { UserRequest } from '../types';
 
 const router = express.Router();
 
-// Apply authMiddleware to all routes
+// Debugging middleware
+router.use((req, res, next) => {
+  console.log(`[PriceFeed Route] ${req.method} request to ${req.url}`);
+  console.log('[PriceFeed Route] Headers:', req.headers);
+  next();
+});
+
+// Apply auth middleware
 router.use((req, res, next) => {
   authMiddleware(req as UserRequest, res, next);
 });
 
-// Helper function to handle async routes
-const asyncHandler = (fn: Function) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
-
-// Apply the asyncHandler to getPriceFeeds
-router.get('/', asyncHandler(getPriceFeeds));
+// Price feed route
+router.get('/', async (req, res, next) => {
+  try {
+    await getPriceFeeds(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

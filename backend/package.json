@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/express-rate-limit": "^6.0.2",
+    "@types/morgan": "^1.9.9",
     "@types/node-cache": "^4.2.5",
     "axios": "^1.7.7",
     "axios-rate-limit": "^1.4.0",
@@ -19,8 +21,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.0",
+    "morgan": "^1.10.0",
     "node-cache": "^5.1.2"
   },
   "devDependencies": {

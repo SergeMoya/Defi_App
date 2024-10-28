@@ -10,6 +10,7 @@ backend\src_backend\controllers\priceFeedController.ts
 backend\src_backend\controllers\transactionController.ts
 backend\src_backend\middleware
 backend\src_backend\middleware\auth.ts
+backend\src_backend\middleware\errorHandler.ts
 backend\src_backend\models
 backend\src_backend\models\PerformanceAnalytics_model.ts
 backend\src_backend\models\Portfolio_model.ts
@@ -27,6 +28,9 @@ backend\src_backend\services\apiService.ts
 backend\src_backend\services\demoUserService.ts
 backend\src_backend\services\priceFeedService.ts
 backend\src_backend\utils
+backend\src_backend\utils\helpers.ts
+backend\src_backend\utils\rateLimiter.ts
+backend\src_backend\utils\RequestQueue.ts
 backend\src_backend\cache.ts
 backend\src_backend\config.ts
 backend\src_backend\server.ts
@@ -38,12 +42,6 @@ backend\tsconfig.json
 frontend
 frontend\node_modules
 frontend\public
-frontend\public\favicon.ico
-frontend\public\index.html
-frontend\public\logo192.png
-frontend\public\logo512.png
-frontend\public\manifest.json
-frontend\public\robots.txt
 frontend\src
 frontend\src\assets
 frontend\src\components
@@ -64,6 +62,8 @@ frontend\src\components\Sidebar.tsx
 frontend\src\components\TransactionHistory.tsx
 frontend\src\context
 frontend\src\context\WalletContext.tsx
+frontend\src\services
+frontend\src\services\CryptoPriceService.ts
 frontend\src\utils
 frontend\src\utils\formatters.ts
 frontend\src\App.test.tsx
