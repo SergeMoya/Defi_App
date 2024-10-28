@@ -1,38 +1,47 @@
-// src/controllers/priceFeedController.ts
+// src_backend/controllers/priceFeedController.ts
 
 import { Request, Response } from 'express';
-import { getTopCoins, getCoinHistory, CoinData } from '../services/priceFeedService';
+import { getPriceData } from '../services/priceFeedService';
 import { getCachedData, setCachedData } from '../cache';
+import { globalRateLimiter } from '../utils/rateLimiter';
 
 const CACHE_KEY = 'priceFeeds';
+const CACHE_TTL = 300; // 5 minutes
 
 export const getPriceFeeds = async (req: Request, res: Response) => {
   try {
-    const count = parseInt(req.query.count as string) || 10;
+    console.log('[PriceFeedController] Starting price feed request');
     
-    const cachedData = getCachedData<CoinData[]>(CACHE_KEY);
+    // Check cache first
+    const cachedData = getCachedData(CACHE_KEY);
     if (cachedData) {
+      console.log('[PriceFeedController] Returning cached data');
       return res.json(cachedData);
     }
 
-    const coins = await getTopCoins(count);
+    // Check rate limit
+    await globalRateLimiter.checkRateLimit();
     
-    const priceFeeds = await Promise.all(coins.map(async (coin: CoinData) => {
-      const history = await getCoinHistory(coin.id);
-      return {
-        symbol: coin.symbol.toUpperCase(),
-        price: coin.current_price,
-        change24h: coin.price_change_percentage_24h,
-        volume24h: coin.total_volume,
-        marketCap: coin.market_cap,
-        priceHistory: history.prices.map(([timestamp, price]) => ({ timestamp, price })),
-      };
-    }));
+    console.log('[PriceFeedController] Fetching fresh price data');
+    
+    const priceFeeds = await getPriceData();
+    
+    // Cache the result
+    setCachedData(CACHE_KEY, priceFeeds, CACHE_TTL);
+    console.log('[PriceFeedController] Data cached successfully');
 
-    setCachedData(CACHE_KEY, priceFeeds);
     res.json(priceFeeds);
-  } catch (error) {
-    console.error('Error in getPriceFeeds:', error);
+  } catch (error: any) {
+    console.error('[PriceFeedController] Error:', error);
+    
+    if (error.message?.includes('rate limit')) {
+      const retryAfter = parseInt(error.message.split(':')[1]) || 60;
+      return res.status(429).json({ 
+        message: 'Rate limit exceeded',
+        retryAfter 
+      });
+    }
+
     res.status(500).json({ message: 'Error fetching price feeds' });
   }
 };

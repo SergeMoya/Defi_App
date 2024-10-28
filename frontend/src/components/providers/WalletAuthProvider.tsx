@@ -103,11 +103,14 @@ const WalletAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setError(null);
       
       // Demo wallet address
-      const demoAddress = '0xDEMO1234567890DeFiDashboardDemo1234567890';
-      setAddress(demoAddress);
-      setIsConnected(true);
-      setIsDemoWallet(true);
-      
+      const demoAddress = process.env.REACT_APP_DEMO_WALLET_ADDRESS;
+      if (demoAddress) {
+        setAddress(demoAddress);
+        setIsConnected(true);
+        setIsDemoWallet(true);
+      } else {
+        throw new Error('Demo wallet address is not defined');
+      }
     } catch (err) {
       console.error('Error using demo wallet:', err);
       setError('Failed to use demo wallet');
