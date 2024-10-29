@@ -44,21 +44,25 @@ const limiter = rateLimit({
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = [
+      // Development Origins
       'http://localhost:3000',
       'http://192.168.1.130:3000',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      // Production Origin
+      'https://defi-dashboard-gold.vercel.app'
     ];
     
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (config.NODE_ENV === 'development') {
+      callback(null, true); // Allow all origins in development
+    } else if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   credentials: true,
-  maxAge: 600
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Additional headers middleware
@@ -92,11 +96,11 @@ const connectDB = async (retries = 5) => {
   while (retries > 0) {
     try {
       if (config.NODE_ENV === 'development') {
-        console.log('[MongoDB] Attempting to connect...');
+        console.log('[MongoDB] Attempting to connect to:', config.MONGODB_URI);
       }
       
       await mongoose.connect(config.MONGODB_URI);
-      console.log('[MongoDB] Connected successfully');
+      console.log(`[MongoDB] Connected successfully in ${config.NODE_ENV} mode`);
       return;
     } catch (error) {
       retries -= 1;
@@ -248,6 +252,12 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Environment-specific server start
+if (process.env.NODE_ENV !== 'production') {
+  startServer();
+} else {
+  // In production (Vercel), we only export the app
+  connectDB().catch(console.error);
+}
 
 export default app;
