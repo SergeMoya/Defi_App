@@ -41,7 +41,6 @@ const limiter = rateLimit({
 });
 
 // CORS Configuration
-// Replace your existing corsOptions with this:
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = [
@@ -94,30 +93,53 @@ const setCustomHeaders = (req: Request, res: Response, next: NextFunction): void
   next();
 };
 
-// MongoDB connection with enhanced retry logic
-const connectDB = async (retries = 5) => {
-  while (retries > 0) {
-    try {
-      if (config.NODE_ENV === 'development') {
-        console.log('[MongoDB] Attempting to connect to:', config.MONGODB_URI);
-      }
-      
-      await mongoose.connect(config.MONGODB_URI);
-      console.log(`[MongoDB] Connected successfully in ${config.NODE_ENV} mode`);
-      return;
-    } catch (error) {
-      retries -= 1;
-      console.error('[MongoDB] Connection error:', error);
-      
-      if (retries === 0) {
-        console.error('[MongoDB] Failed to connect after multiple attempts');
-        process.exit(1);
-      }
-      
-      const waitTime = 5000 * (6 - retries);
-      console.log(`[MongoDB] Retrying in ${waitTime/1000}s... (${retries} attempts remaining)`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+// MongoDB connection handling for serverless environment
+let cachedDb: typeof mongoose | null = null;
+
+const connectDB = async () => {
+  if (cachedDb && mongoose.connection.readyState === 1) {
+    console.log('[MongoDB] Using cached connection');
+    return cachedDb;
+  }
+
+  try {
+    if (config.NODE_ENV === 'development') {
+      console.log('[MongoDB] Attempting to connect to:', config.MONGODB_URI);
     }
+    
+    // Close any existing connections
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+    
+    const opts = {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4,  // Force IPv4
+      maxPoolSize: 1,  // Important for serverless
+    };
+
+    await mongoose.connect(config.MONGODB_URI, opts);
+    cachedDb = mongoose;
+    
+    // Setup connection error handlers
+    mongoose.connection.on('error', (error) => {
+      console.error('[MongoDB] Connection error:', error);
+      cachedDb = null;
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('[MongoDB] Disconnected');
+      cachedDb = null;
+    });
+    
+    console.log(`[MongoDB] Connected successfully in ${config.NODE_ENV} mode`);
+    return cachedDb;
+  } catch (error) {
+    console.error('[MongoDB] Connection error:', error);
+    cachedDb = null;
+    throw error;
   }
 };
 
@@ -147,14 +169,30 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Health check endpoint
+// Health check endpoint with enhanced MongoDB status
 app.get('/health', async (req: Request, res: Response) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    environment: config.NODE_ENV,
-    mongoConnection: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
+  try {
+    await connectDB();
+    
+    const status = {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: config.NODE_ENV,
+      mongoConnection: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+      mongoReadyState: mongoose.connection.readyState,
+      version: '1.0.0'
+    };
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      environment: config.NODE_ENV,
+      mongoConnection: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // Debug middleware for test endpoints
@@ -208,7 +246,7 @@ app.use('/api/performance-analytics', performanceAnalyticsRoutes);
 // Setup error handling (should be last)
 setupErrorHandling(app);
 
-// Graceful shutdown handling
+// Graceful shutdown handling for non-serverless environments
 const gracefulShutdown = async () => {
   console.log('[Server] Initiating graceful shutdown...');
   try {
@@ -221,46 +259,58 @@ const gracefulShutdown = async () => {
   }
 };
 
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
-// Start the server
-const startServer = async () => {
-  try {
-    await connectDB();
-    const server = app.listen(config.PORT, () => {
-      console.log(`[Server] Running on port ${config.PORT} in ${config.NODE_ENV} mode`);
-    });
-
-    // Enhanced error handling
-    process.on('unhandledRejection', (error: Error) => {
-      console.error('[Server] Unhandled Rejection:', error);
-      server.close(() => {
-        console.error('[Server] Shutting down due to unhandled rejection');
-        process.exit(1);
-      });
-    });
-
-    process.on('uncaughtException', (error: Error) => {
-      console.error('[Server] Uncaught Exception:', error);
-      server.close(() => {
-        console.error('[Server] Shutting down due to uncaught exception');
-        process.exit(1);
-      });
-    });
-
-  } catch (error) {
-    console.error('[Server] Failed to start:', error);
-    process.exit(1);
-  }
-};
-
-// Environment-specific server start
+// Only attach process handlers in non-serverless environment
 if (process.env.NODE_ENV !== 'production') {
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
+  
+  // Start the server for development
+  const startServer = async () => {
+    try {
+      await connectDB();
+      const server = app.listen(config.PORT, () => {
+        console.log(`[Server] Running on port ${config.PORT} in ${config.NODE_ENV} mode`);
+      });
+
+      // Enhanced error handling
+      process.on('unhandledRejection', (error: Error) => {
+        console.error('[Server] Unhandled Rejection:', error);
+        server.close(() => {
+          console.error('[Server] Shutting down due to unhandled rejection');
+          process.exit(1);
+        });
+      });
+
+      process.on('uncaughtException', (error: Error) => {
+        console.error('[Server] Uncaught Exception:', error);
+        server.close(() => {
+          console.error('[Server] Shutting down due to uncaught exception');
+          process.exit(1);
+        });
+      });
+
+    } catch (error) {
+      console.error('[Server] Failed to start:', error);
+      process.exit(1);
+    }
+  };
+
   startServer();
-} else {
-  // In production (Vercel), we only export the app
-  connectDB().catch(console.error);
 }
 
-export default app;
+// Export handler for serverless deployment
+export default async function handler(req: Request, res: Response) {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      await connectDB();
+    }
+    return app(req, res);
+  } catch (error) {
+    console.error('[Server] Error in handler:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal server error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}
