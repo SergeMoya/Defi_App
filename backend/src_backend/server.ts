@@ -41,29 +41,32 @@ const limiter = rateLimit({
 });
 
 // CORS Configuration
+// Replace your existing corsOptions with this:
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = [
-      // Development Origins
       'http://localhost:3000',
       'http://192.168.1.130:3000',
       'http://127.0.0.1:3000',
-      // Production Origin
       'https://defi-dashboard-gold.vercel.app'
     ];
     
-    if (config.NODE_ENV === 'development') {
-      callback(null, true); // Allow all origins in development
-    } else if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('Blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600
 };
+
+// Add this after your existing middleware setup but before routes
+app.options('*', cors(corsOptions));
 
 // Additional headers middleware
 const setCustomHeaders = (req: Request, res: Response, next: NextFunction): void => {

@@ -6,6 +6,15 @@ import { ShieldCheck, KeyRound } from 'lucide-react';
 import BitcoinP2P from '../assets/bitcoin_p2p.svg';
 import SecureLogin from '../assets/secure_login.svg';
 
+
+// axios instance with default config
+const api = axios.create({
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 interface AuthenticationProps {
   onAuthSuccess: (token: string, accountType?: 'personal' | 'demo') => void;
   onError: (message: string) => void;
@@ -29,7 +38,11 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
         throw new Error('API base URL not configured');
       }
 
-      const response = await axios.post(`${baseUrl}${endpoint}`, { address, password });
+      const response = await api.post(`${baseUrl}${endpoint}`, { 
+        address, 
+        password 
+      });
+
       const { token, accountType } = response.data;
 
       if (token) {
@@ -60,7 +73,10 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
         throw new Error('API base URL not configured');
       }
 
-      const response = await axios.post(`${baseUrl}/api/auth/login-demo`);
+      const response = await api.post(`${baseUrl}/api/auth/login-demo`, {}, {
+        timeout: 10000 // 10 second timeout
+      });
+
       const { token, accountType, portfolio, performanceAnalytics } = response.data;
 
       if (token) {
