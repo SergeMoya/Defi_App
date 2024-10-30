@@ -8,7 +8,6 @@ import { useWallet } from '../context/WalletContext';
 import WalletPlaceholder from './common/WalletPlaceholder';
 import { cryptoPriceService } from '../services/CryptoPriceService';
 import { Wallet, TrendingUp, Activity } from 'lucide-react';
-// Import the SVG
 import CryptoPortfolio from '../assets/crypto_portfolio.svg';
 
 // Environment variables
@@ -135,11 +134,11 @@ const PortfolioOverview: React.FC = () => {
       >
         <div className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="flex flex-col justify-center">
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            <div className="flex flex-col justify-center items-center text-center max-w-lg mx-auto">
+              <h3 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
                 Portfolio Overview
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                 Connect your wallet to view and manage your crypto portfolio
               </p>
               <WalletPlaceholder 

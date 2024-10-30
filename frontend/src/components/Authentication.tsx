@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { ShieldCheck, KeyRound } from 'lucide-react';
-// Import the SVGs
 import BitcoinP2P from '../assets/bitcoin_p2p.svg';
 import SecureLogin from '../assets/secure_login.svg';
 

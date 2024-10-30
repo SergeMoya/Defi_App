@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction, Application } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import morgan from 'morgan';
@@ -13,7 +13,7 @@ import { setupErrorHandling } from './middleware/errorHandler';
 
 const app = express();
 
-// Enhanced logging middleware
+// Middleware logging
 const loggerMiddleware = morgan((tokens, req, res) => {
   return JSON.stringify({
     method: tokens.method(req, res),
@@ -64,7 +64,6 @@ const corsOptions = {
   maxAge: 600
 };
 
-// Add this after your existing middleware setup but before routes
 app.options('*', cors(corsOptions));
 
 // Additional headers middleware
@@ -98,16 +97,15 @@ let cachedDb: typeof mongoose | null = null;
 
 const connectDB = async () => {
   if (cachedDb && mongoose.connection.readyState === 1) {
-    console.log('[MongoDB] Using cached connection');
+    //console.log('[MongoDB] Using cached connection');
     return cachedDb;
   }
 
   try {
     if (config.NODE_ENV === 'development') {
-      console.log('[MongoDB] Attempting to connect to:', config.MONGODB_URI);
+      //console.log('[MongoDB] Attempting to connect to:', config.MONGODB_URI);
     }
     
-    // Close any existing connections
     if (mongoose.connection.readyState !== 0) {
       await mongoose.disconnect();
     }
@@ -117,7 +115,7 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       family: 4,  // Force IPv4
-      maxPoolSize: 1,  // Important for serverless
+      maxPoolSize: 1,  
     };
 
     await mongoose.connect(config.MONGODB_URI, opts);
@@ -143,7 +141,7 @@ const connectDB = async () => {
   }
 };
 
-// Basic Middleware Setup (Order is important)
+// Basic Middleware Setup 
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(loggerMiddleware);
@@ -169,7 +167,7 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Health check endpoint with enhanced MongoDB status
+// Health check endpoint 
 app.get('/health', async (req: Request, res: Response) => {
   try {
     await connectDB();
@@ -208,7 +206,7 @@ app.use('/api/test/*', (req: Request, res: Response, next: NextFunction) => {
 // Test endpoint for development
 app.get('/api/test/price-feed', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('[PriceFeed Test] Starting price feed test');
+    //console.log('[PriceFeed Test] Starting price feed test');
     const mockData = [
       {
         id: "bitcoin",
@@ -248,7 +246,7 @@ setupErrorHandling(app);
 
 // Graceful shutdown handling for non-serverless environments
 const gracefulShutdown = async () => {
-  console.log('[Server] Initiating graceful shutdown...');
+  //console.log('[Server] Initiating graceful shutdown...');
   try {
     await mongoose.connection.close();
     console.log('[MongoDB] Connection closed');
@@ -272,7 +270,7 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`[Server] Running on port ${config.PORT} in ${config.NODE_ENV} mode`);
       });
 
-      // Enhanced error handling
+      // Error handling
       process.on('unhandledRejection', (error: Error) => {
         console.error('[Server] Unhandled Rejection:', error);
         server.close(() => {

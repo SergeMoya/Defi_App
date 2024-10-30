@@ -1,12 +1,10 @@
-// src_backend/services/priceFeedService.ts
-
 import { apiService } from './apiService';
 import { getCachedData, setCachedData } from '../cache';
 
 const CACHE_KEY = 'priceFeeds';
 const CACHE_TTL = 300; // 5 minutes
 
-// Define the major coins we want to track
+// Major 5 coins to be tracked
 const MAJOR_COINS = ['bitcoin', 'ethereum', 'binancecoin', 'solana', 'cardano'];
 
 export interface CoinData {

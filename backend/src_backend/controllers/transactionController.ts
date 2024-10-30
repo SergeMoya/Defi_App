@@ -1,5 +1,3 @@
-// backend/src_backend/controllers/transactionController.ts
-
 import { Response } from 'express';
 import { UserRequest } from '../types';
 import Transaction, { ITransaction } from '../models/Transaction_model';

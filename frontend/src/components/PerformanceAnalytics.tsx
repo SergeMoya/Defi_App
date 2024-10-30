@@ -189,11 +189,11 @@ const PerformanceAnalytics: React.FC = () => {
       >
         <div className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="flex flex-col justify-center">
-              <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+            <div className="flex flex-col justify-center items-center text-center max-w-lg mx-auto">
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
                 Performance Analytics
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                 Track and analyze your portfolio performance with detailed metrics and visualizations
               </p>
               <WalletPlaceholder 

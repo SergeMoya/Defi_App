@@ -1,13 +1,11 @@
-// backend/src_backend/utils/rateLimiter.ts
-
 import NodeCache from 'node-cache';
-import { sleep, backoffDelay } from './helpers';
+import { sleep } from './helpers';
 
 export class RateLimiter {
   private cache: NodeCache;
-  private readonly maxRequests = 30; // Reduce max requests to be safer
-  private readonly windowMs = 60000; // 1 minute window
-  private readonly minInterval = 2000; // Increase minimum interval between requests
+  private readonly maxRequests = 30; 
+  private readonly windowMs = 60000; 
+  private readonly minInterval = 2000; 
   private lastRequestTime = 0;
   private retryQueue: Map<string, number> = new Map();
 
@@ -25,7 +23,7 @@ export class RateLimiter {
     const timeSinceLastRequest = now - this.lastRequestTime;
     const retryAfter = this.retryQueue.get(key);
 
-    // Check if we're in retry period
+    // Check if it's in retry period
     if (retryAfter && now < retryAfter) {
       const waitTime = retryAfter - now;
       throw new Error(`rate limit exceeded:${Math.ceil(waitTime / 1000)}`);
@@ -36,7 +34,7 @@ export class RateLimiter {
       await sleep(this.minInterval - timeSinceLastRequest);
     }
 
-    // Check if we're at the rate limit
+    // Check if the rate limit is reached
     if (requests >= this.maxRequests) {
       const waitTime = this.windowMs - (now - this.lastRequestTime);
       this.retryQueue.set(key, now + waitTime);

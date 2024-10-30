@@ -1,5 +1,3 @@
-// src/services/demoUserService.ts
-
 import Portfolio from '../models/Portfolio_model';
 import PerformanceAnalytics from '../models/PerformanceAnalytics_model';
 import Transaction from '../models/Transaction_model';

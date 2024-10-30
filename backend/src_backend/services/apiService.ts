@@ -1,5 +1,3 @@
-// src/services/apiService.ts
-
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import rateLimit from 'axios-rate-limit';
 import NodeCache from 'node-cache';
