@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { format, parseISO } from 'date-fns';
@@ -39,7 +39,7 @@ const TransactionHistory: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -73,7 +73,7 @@ const TransactionHistory: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, sortColumn, sortDirection, filter]);
 
   useEffect(() => {
     if (isWalletConnected || isUsingDemoWallet) {
@@ -82,7 +82,7 @@ const TransactionHistory: React.FC = () => {
       setTransactions([]);
       setIsLoading(false);
     }
-  }, [currentPage, itemsPerPage, sortColumn, sortDirection, filter, isWalletConnected, isUsingDemoWallet]);
+  }, [fetchTransactions, isWalletConnected, isUsingDemoWallet]);
 
   const handleSort = (column: keyof Transaction) => {
     if (column === sortColumn) {

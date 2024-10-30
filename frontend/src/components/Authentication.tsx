@@ -76,7 +76,7 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
         timeout: 10000 // 10 second timeout
       });
 
-      const { token, accountType, portfolio, performanceAnalytics } = response.data;
+      const { token, portfolio, performanceAnalytics } = response.data;
 
       if (token) {
         localStorage.setItem('token', token);

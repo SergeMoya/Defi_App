@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '../utils/formatters';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion} from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
 import WalletPlaceholder from './common/WalletPlaceholder';
 import { cryptoPriceService } from '../services/CryptoPriceService';
@@ -13,7 +13,7 @@ import CryptoPortfolio from '../assets/crypto_portfolio.svg';
 // Environment variables
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const PORTFOLIO_ENDPOINT = process.env.REACT_APP_PORTFOLIO_ENDPOINT;
-const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000;
+//const DATA_REFRESH_INTERVAL = Number(process.env.REACT_APP_DATA_REFRESH_INTERVAL) || 300000;
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { MoonIcon, SunIcon, BellIcon, UserCircleIcon, Bars3Icon, ArrowRightOnRectangleIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { MoonIcon, SunIcon, BellIcon, Bars3Icon, ArrowRightOnRectangleIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { Transition } from '@headlessui/react';
 import { Snackbar, Alert } from '@mui/material';
-import logoImage from '../assets/acare_logo.png';
+import logoImage from '../assets/defi_logo.png';
 import { useWallet } from '../context/WalletContext';
 
 interface HeaderProps {
@@ -60,23 +60,15 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, accountType 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
-            <img className="h-8 w-auto mr-2" src={logoImage} alt="Acare Dashboard" />
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+            <img 
+              className="h-16 w-auto mr-4 rounded-xl shadow-md border-2 border-gray-100 dark:border-gray-700" 
+              src={logoImage} 
+              alt="Acare Dashboard" 
+            />
+            <span className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
               Acare Dashboard
             </span>
           </div>
-          
-          <nav className="hidden md:flex space-x-8">
-            {['Dashboard', 'Analytics', 'Settings'].map((item) => (
-              <button
-                key={item}
-                className="text-base font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition duration-150 ease-in-out"
-              >
-                {item}
-              </button>
-            ))}
-          </nav>
-
           <div className="flex items-center space-x-4">
             {isAuthenticated && (
               <>
@@ -161,18 +153,6 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, accountType 
         leaveFrom="opacity-100 scale-100"
         leaveTo="opacity-0 scale-95"
       >
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {['Dashboard', 'Analytics', 'Settings'].map((item) => (
-              <button
-                key={item}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 transition duration-150 ease-in-out"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
       </Transition>
 
       <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
