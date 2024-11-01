@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { ethers } from 'ethers';
 
 interface WalletContextType {
   isWalletConnected: boolean;
@@ -8,6 +9,8 @@ interface WalletContextType {
   useDemoWallet: () => void;
   disconnectWallet: () => void;
   accountType: 'personal' | 'demo' | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -25,92 +28,181 @@ declare global {
   }
 }
 
+// Constants for localStorage keys
+const WALLET_STORAGE_KEYS = {
+  CONNECTED: 'walletConnected',
+  ADDRESS: 'walletAddress',
+  DEMO: 'isDemoWallet',
+  ACCOUNT_TYPE: 'accountType'
+};
+
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [isUsingDemoWallet, setIsUsingDemoWallet] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<'personal' | 'demo' | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const disconnectWalletRef = useRef(() => {
+    setIsWalletConnected(false);
+    setIsUsingDemoWallet(false);
+    setWalletAddress(null);
+    setAccountType(null);
+    setError(null);
+    
+    Object.values(WALLET_STORAGE_KEYS).forEach(key => {
+      localStorage.removeItem(key);
+    });
+  });
 
-  useEffect(() => {
-    const storedAccountType = localStorage.getItem('accountType') as 'personal' | 'demo' | null;
-    setAccountType(storedAccountType);
+  const getProvider = useCallback(() => {
+    if (window.ethereum) {
+      return new ethers.BrowserProvider(window.ethereum);
+    }
+    return null;
+  }, []);
 
-    const checkWalletConnection = async () => {
-      if (window.ethereum) {
+  const initializeDemoWallet = useCallback(() => {
+    const demoAddress = process.env.REACT_APP_DEMO_WALLET_ADDRESS || '0xDEMO1234567890DeFiDashboardDemo1234567890';
+    
+    setIsUsingDemoWallet(true);
+    setWalletAddress(demoAddress);
+    setIsWalletConnected(false);
+    setAccountType('demo');
+
+    localStorage.setItem(WALLET_STORAGE_KEYS.DEMO, 'true');
+    localStorage.setItem(WALLET_STORAGE_KEYS.ADDRESS, demoAddress);
+    localStorage.setItem(WALLET_STORAGE_KEYS.ACCOUNT_TYPE, 'demo');
+  }, []);
+
+  const handleAccountsChanged = useCallback(async (accounts: string[]) => {
+    if (accounts.length === 0) {
+      disconnectWalletRef.current();
+    } else {
+      const provider = getProvider();
+      if (provider) {
         try {
-          const accounts = await window.ethereum.request({ 
-            method: 'eth_accounts'
-          }) as string[];
-          
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0]);
-            setIsWalletConnected(true);
-          }
+          const signer = await provider.getSigner();
+          const address = await signer.getAddress();
+          setWalletAddress(address);
+          setIsWalletConnected(true);
+          setIsUsingDemoWallet(false);
+          localStorage.setItem(WALLET_STORAGE_KEYS.CONNECTED, 'true');
+          localStorage.setItem(WALLET_STORAGE_KEYS.ADDRESS, address);
+          setAccountType('personal');
+          localStorage.setItem(WALLET_STORAGE_KEYS.ACCOUNT_TYPE, 'personal');
         } catch (error) {
-          console.error('Error checking wallet connection:', error);
+          console.error('Error updating wallet address:', error);
+          disconnectWalletRef.current();
         }
       }
-    };
+    }
+  }, [getProvider]);
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        setIsWalletConnected(false);
-        setWalletAddress(null);
-      } else {
-        setWalletAddress(accounts[0]);
-        setIsWalletConnected(true);
+  const handleChainChanged = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  // Initialize wallet state
+  useEffect(() => {
+    const initializeWallet = async () => {
+      try {
+        const storedWalletConnected = localStorage.getItem(WALLET_STORAGE_KEYS.CONNECTED);
+        const storedDemoWallet = localStorage.getItem(WALLET_STORAGE_KEYS.DEMO);
+        const storedAccountType = localStorage.getItem(WALLET_STORAGE_KEYS.ACCOUNT_TYPE) as 'personal' | 'demo' | null;
+
+        setAccountType(storedAccountType);
+
+        if (storedDemoWallet === 'true') {
+          initializeDemoWallet();
+          setIsLoading(false);
+          return;
+        }
+
+        if (storedWalletConnected === 'true' && window.ethereum) {
+          const provider = getProvider();
+          if (provider) {
+            const accounts = await provider.send("eth_accounts", []);
+            if (accounts.length > 0) {
+              const signer = await provider.getSigner();
+              const address = await signer.getAddress();
+              setWalletAddress(address);
+              setIsWalletConnected(true);
+              setIsUsingDemoWallet(false);
+            } else {
+              disconnectWalletRef.current();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing wallet:', error);
+        disconnectWalletRef.current();
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    checkWalletConnection();
+    initializeWallet();
+  }, [getProvider, initializeDemoWallet]);
 
+  // Set up event listeners
+  useEffect(() => {
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+      window.ethereum.on('disconnect', disconnectWalletRef.current);
 
       return () => {
         window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum?.removeListener('chainChanged', handleChainChanged);
+        window.ethereum?.removeListener('disconnect', disconnectWalletRef.current);
       };
     }
-  }, []);
+  }, [handleAccountsChanged, handleChainChanged]);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
+      setError('Please install MetaMask to connect a wallet');
       throw new Error('Please install MetaMask to connect a wallet');
     }
 
     try {
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      }) as string[];
+      setIsLoading(true);
+      setError(null);
+      
+      const provider = getProvider();
+      if (!provider) {
+        throw new Error('No provider available');
+      }
 
-      setWalletAddress(accounts[0]);
-      setIsWalletConnected(true);
-      setIsUsingDemoWallet(false);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      
+      if (accounts && accounts.length > 0) {
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        
+        setWalletAddress(address);
+        setIsWalletConnected(true);
+        setIsUsingDemoWallet(false);
+        setAccountType('personal');
 
-      localStorage.setItem('walletConnected', 'true');
-      localStorage.setItem('walletAddress', accounts[0]);
+        localStorage.setItem(WALLET_STORAGE_KEYS.CONNECTED, 'true');
+        localStorage.setItem(WALLET_STORAGE_KEYS.ADDRESS, address);
+        localStorage.setItem(WALLET_STORAGE_KEYS.ACCOUNT_TYPE, 'personal');
+      }
     } catch (error) {
       console.error('Error connecting wallet:', error);
+      setError('Failed to connect wallet');
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const useDemoWallet = () => {
-    setIsUsingDemoWallet(true);
-    setWalletAddress('0xDEMO1234567890DeFiDashboardDemo1234567890');
-    setIsWalletConnected(false);
-    localStorage.setItem('isDemoWallet', 'true');
-  };
-
-  const disconnectWallet = () => {
-    setIsWalletConnected(false);
-    setIsUsingDemoWallet(false);
-    setWalletAddress(null);
-    
-    localStorage.removeItem('walletConnected');
-    localStorage.removeItem('walletAddress');
-    localStorage.removeItem('isDemoWallet');
-  };
+  const useDemoWallet = useCallback(() => {
+    initializeDemoWallet();
+  }, [initializeDemoWallet]);
 
   const value = {
     isWalletConnected,
@@ -118,8 +210,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     walletAddress,
     connectWallet,
     useDemoWallet,
-    disconnectWallet,
+    disconnectWallet: disconnectWalletRef.current,
     accountType,
+    isLoading,
+    error
   };
 
   return (

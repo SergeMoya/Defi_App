@@ -20,6 +20,21 @@ interface PriceData {
   priceHistory: Array<{timestamp: number; price: number}>;
 }
 
+const formatAxisValue = (value: number): string => {
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return value.toFixed(1);
+};
+
+const formatTooltipValue = (value: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
 const PriceFeeds: React.FC = () => {
   const [prices, setPrices] = useState<PriceData[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
@@ -112,10 +127,11 @@ const PriceFeeds: React.FC = () => {
           />
           <YAxis 
             domain={['auto', 'auto']}
-            tickFormatter={(value) => `$${value.toLocaleString()}`}
+            tickFormatter={(value) => `$${formatAxisValue(value)}`}
+            width={65}
           />
           <Tooltip 
-            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Price']}
+            formatter={(value: number) => [formatTooltipValue(value), 'Price']}
             labelFormatter={(value) => `${value}:00`}
           />
           <Line 
