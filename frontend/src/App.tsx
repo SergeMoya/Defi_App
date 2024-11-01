@@ -5,13 +5,14 @@ import MainContent from './components/MainContent';
 import Footer from './components/Footer';
 import Authentication from './components/Authentication';
 import { WalletProvider } from './context/WalletContext';
+import WalletLoading from './components/common/WalletLoading';
 
 interface AuthData {
   token: string;
   accountType: 'personal' | 'demo';
 }
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [auth, setAuth] = useState<AuthData | null>(() => {
     const token = localStorage.getItem('token');
     const accountType = localStorage.getItem('accountType') as 'personal' | 'demo';
@@ -48,41 +49,47 @@ const App: React.FC = () => {
   };
 
   return (
-    <WalletProvider>
-      <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
-        {auth ? (
-          <>
-            <Header 
-              isAuthenticated={true} 
-              onLogout={handleLogout}
-              accountType={auth.accountType}
-            />
-            <MainContent />
-          </>
-        ) : (
-          <div className="flex-grow flex items-center justify-center">
-            <Authentication 
-              onAuthSuccess={handleAuthSuccess}
-              onError={handleError}
-            />
-          </div>
-        )}
-        <Footer />
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+      {auth ? (
+        <>
+          <Header 
+            isAuthenticated={true} 
+            onLogout={handleLogout}
+            accountType={auth.accountType}
+          />
+          <MainContent />
+        </>
+      ) : (
+        <div className="flex-grow flex items-center justify-center">
+          <Authentication 
+            onAuthSuccess={handleAuthSuccess}
+            onError={handleError}
+          />
+        </div>
+      )}
+      <Footer />
 
-        <Snackbar 
-          open={snackbarOpen} 
-          autoHideDuration={6000} 
-          onClose={handleSnackbarClose}
+      <Snackbar 
+        open={snackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={handleSnackbarClose}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity="error" 
+          sx={{ width: '100%' }}
         >
-          <Alert 
-            onClose={handleSnackbarClose} 
-            severity="error" 
-            sx={{ width: '100%' }}
-          >
-            {error}
-          </Alert>
-        </Snackbar>
-      </div>
+          {error}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <WalletProvider>
+      <AppContent />
     </WalletProvider>
   );
 };
