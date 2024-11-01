@@ -30,7 +30,7 @@ const TransactionHistory: React.FC = () => {
   const { isWalletConnected, isUsingDemoWallet } = useWallet();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(window.innerWidth <= 768 ? 5 : 10);
   const [sortColumn, setSortColumn] = useState<keyof Transaction>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'buy' | 'sell'>('all');
@@ -42,7 +42,9 @@ const TransactionHistory: React.FC = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      setItemsPerPage(mobile ? 5 : 10);
     };
 
     window.addEventListener('resize', handleResize);

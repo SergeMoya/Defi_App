@@ -1,7 +1,6 @@
 backend
 backend\node_modules
 backend\src_backend
-backend\src_backend\config
 backend\src_backend\controllers
 backend\src_backend\controllers\authController.ts
 backend\src_backend\controllers\performanceAnalyticsController.ts
@@ -28,17 +27,16 @@ backend\src_backend\services\apiService.ts
 backend\src_backend\services\demoUserService.ts
 backend\src_backend\services\priceFeedService.ts
 backend\src_backend\utils
-backend\src_backend\utils\helpers.ts
-backend\src_backend\utils\rateLimiter.ts
-backend\src_backend\utils\RequestQueue.ts
 backend\src_backend\cache.ts
 backend\src_backend\config.ts
 backend\src_backend\server.ts
 backend\src_backend\types.ts
 backend\.env
+backend\.env.development
 backend\package-lock.json
 backend\package.json
 backend\tsconfig.json
+backend\vercel.json
 frontend
 frontend\node_modules
 frontend\public
@@ -47,8 +45,6 @@ frontend\src\assets
 frontend\src\components
 frontend\src\components\common
 frontend\src\components\common\WalletPlaceholder.tsx
-frontend\src\components\components_portofolio
-frontend\src\components\components_portofolio\AddAssetModal.tsx
 frontend\src\components\providers
 frontend\src\components\providers\WalletAuthProvider.tsx
 frontend\src\components\Authentication.tsx
@@ -58,7 +54,6 @@ frontend\src\components\MainContent.tsx
 frontend\src\components\PerformanceAnalytics.tsx
 frontend\src\components\PortfolioOverview.tsx
 frontend\src\components\PriceFeeds.tsx
-frontend\src\components\Sidebar.tsx
 frontend\src\components\TransactionHistory.tsx
 frontend\src\context
 frontend\src\context\WalletContext.tsx
@@ -75,6 +70,8 @@ frontend\src\react-app-env.d.ts
 frontend\src\reportWebVitals.ts
 frontend\src\setupTests.ts
 frontend\.env
+frontend\.env.development
+frontend\.env.production
 frontend\package-lock.json
 frontend\package.json
 frontend\postcss.config.js
