@@ -37,9 +37,9 @@ const PriceFeeds: React.FC = () => {
           throw new Error('Authentication token not found');
         }
 
-        // Construct the full URL using environment variables
+
         const apiUrl = `${API_BASE_URL}${PRICE_FEED_ENDPOINT}`;
-        console.log('Fetching from:', apiUrl); // Debug log
+        //console.log('Fetching from:', apiUrl); 
 
         const response = await fetch(apiUrl, {
           headers: {
@@ -47,7 +47,7 @@ const PriceFeeds: React.FC = () => {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
-          credentials: 'include' // Include credentials if your API requires it
+          credentials: 'include' 
         });
 
         console.log('Response status:', response.status);
@@ -61,9 +61,8 @@ const PriceFeeds: React.FC = () => {
         }
 
         const responseData = await response.json();
-        console.log('Response data:', responseData); // Debug log
+        console.log('Response data:', responseData); 
 
-        // Handle the nested data structure from your API
         const priceData = responseData.data || responseData;
         
         if (!Array.isArray(priceData)) {
@@ -80,7 +79,6 @@ const PriceFeeds: React.FC = () => {
     };
 
     fetchPrices();
-    // Use the environment variable for refresh interval
     const interval = setInterval(fetchPrices, REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, []);

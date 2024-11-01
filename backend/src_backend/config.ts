@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Enhanced interface with all configuration options
+//Interface with all configuration options
 interface Config {
   PORT: number;
   NODE_ENV: string;
@@ -116,5 +116,4 @@ if (config.NODE_ENV === 'development') {
     JWT_SECRET: '[REDACTED]',
     MONGODB_URI: '[REDACTED]',
   };
-  console.log('Loaded configuration:', safeConfig);
 }

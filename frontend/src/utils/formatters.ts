@@ -1,5 +1,3 @@
-// src/utils/formatters.ts
-
 export const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

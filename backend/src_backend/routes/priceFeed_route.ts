@@ -1,5 +1,3 @@
-// In your routes/priceFeed_route.ts
-
 import express from 'express';
 import { getPriceFeeds } from '../controllers/priceFeedController';
 import { authMiddleware } from '../middleware/auth';

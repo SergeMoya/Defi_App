@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { ShieldCheck, KeyRound } from 'lucide-react';
-// Import the SVGs
 import BitcoinP2P from '../assets/bitcoin_p2p.svg';
 import SecureLogin from '../assets/secure_login.svg';
 
@@ -77,7 +76,7 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
         timeout: 10000 // 10 second timeout
       });
 
-      const { token, accountType, portfolio, performanceAnalytics } = response.data;
+      const { token, portfolio, performanceAnalytics } = response.data;
 
       if (token) {
         localStorage.setItem('token', token);

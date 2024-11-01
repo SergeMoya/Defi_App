@@ -1,5 +1,3 @@
-// backend/src_backend/models/Transaction_model.ts
-
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITransaction extends Document {

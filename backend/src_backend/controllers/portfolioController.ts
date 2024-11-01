@@ -1,88 +1,202 @@
 import { Response } from 'express';
 import Portfolio, { IPortfolio, IAsset } from '../models/Portfolio_model';
+import PerformanceAnalytics from '../models/PerformanceAnalytics_model';
 import { getPriceData, CoinData } from '../services/priceFeedService';
 import { UserRequest } from '../types';
 
-const createSamplePortfolio = (priceData: CoinData[]): IAsset[] => {
-  return priceData
-    .slice(0, 5)
-    .map(coin => ({
-      name: coin.name,
-      symbol: coin.symbol,
-      amount: parseFloat((Math.random() * 10).toFixed(4)), // Random amount between 0 and 10
-      value: 0,
-      change24h: 0,
-      image: coin.image,
-    }));
+interface HistoricalPrices {
+  current: number;
+  day: number;
+  week: number;
+  month: number;
+  initial: number;
+}
+
+const getHistoricalPrices = async (userId: string, currentValue: number): Promise<HistoricalPrices> => {
+  try {
+    const performanceAnalytics = await PerformanceAnalytics.findOne({ userId })
+      .sort({ 'data.date': -1 });
+
+    if (!performanceAnalytics || !performanceAnalytics.data.length) {
+      console.log('No historical data found, using current value for initialization');
+      return {
+        current: currentValue,
+        day: currentValue,
+        week: currentValue,
+        month: currentValue,
+        initial: currentValue
+      };
+    }
+
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const sortedData = performanceAnalytics.data
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const findClosestValue = (targetDate: Date): number => {
+      const closest = sortedData.reduce((prev, curr) => {
+        const currDiff = Math.abs(new Date(curr.date).getTime() - targetDate.getTime());
+        const prevDiff = Math.abs(new Date(prev.date).getTime() - targetDate.getTime());
+        return currDiff < prevDiff ? curr : prev;
+      });
+      return closest.totalValue;
+    };
+
+    const dayValue = findClosestValue(oneDayAgo);
+    const weekValue = findClosestValue(sevenDaysAgo);
+    const monthValue = findClosestValue(thirtyDaysAgo);
+    const initialValue = sortedData[sortedData.length - 1].totalValue;
+
+    console.log('Historical values found:', {
+      current: currentValue,
+      day: dayValue,
+      week: weekValue,
+      month: monthValue,
+      initial: initialValue
+    });
+
+    return {
+      current: currentValue,
+      day: dayValue,
+      week: weekValue,
+      month: monthValue,
+      initial: initialValue || currentValue
+    };
+  } catch (error) {
+    console.error('Error getting historical prices:', error);
+    return {
+      current: currentValue,
+      day: currentValue,
+      week: currentValue,
+      month: currentValue,
+      initial: currentValue
+    };
+  }
 };
 
-const updateAssetPrices = (assets: IAsset[], priceData: CoinData[]): IAsset[] => {
-  return assets.map(asset => {
-    const coinData = priceData.find(coin => coin.symbol.toLowerCase() === asset.symbol.toLowerCase());
+const calculateChanges = (prices: HistoricalPrices) => {
+  const changes = {
+    change24h: prices.current - prices.day,
+    change7d: prices.current - prices.week,
+    change30d: prices.current - prices.month,
+    changeAllTime: prices.current - prices.initial
+  };
+
+  console.log('Calculated changes:', changes);
+  return changes;
+};
+
+const updateAssetPrices = async (assets: IAsset[], priceData: CoinData[]): Promise<{
+  updatedAssets: IAsset[];
+  totalValue: number;
+  initialInvestment: number;
+}> => {
+  let totalValue = 0;
+  let initialInvestment = 0;
+
+  const updatedAssets = assets.map(asset => {
+    const coinData = priceData.find(
+      coin => coin.symbol.toLowerCase() === asset.symbol.toLowerCase()
+    );
+
     if (coinData) {
+      const currentValue = asset.amount * coinData.current_price;
+      // Use existing initialValue or current value if not set
+      const assetInitialValue = asset.initialValue || currentValue;
+
+      totalValue += currentValue;
+      initialInvestment += assetInitialValue;
+
       return {
         ...asset,
-        value: asset.amount * coinData.current_price,
+        value: currentValue,
         change24h: coinData.price_change_percentage_24h || 0,
-        image: coinData.image,
+        initialValue: assetInitialValue,
+        image: coinData.image
       };
     }
     return asset;
   });
+
+  return { updatedAssets, totalValue, initialInvestment };
 };
 
 export const getPortfolio = async (req: UserRequest, res: Response) => {
   try {
-    console.log('getPortfolio called. req.user:', req.user);
-
     const userId = req.user?.id;
-    console.log('Extracted userId:', userId);
 
     if (!userId) {
-      console.log('User not authenticated');
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
     const priceData = await getPriceData();
-    //console.log('Fetched price data:', priceData);
-
     let portfolio = await Portfolio.findOne({ userId });
-    //console.log('Found portfolio:', portfolio);
 
     if (!portfolio) {
-      console.log('Creating new portfolio for userId:', userId);
+      console.log('Creating new portfolio');
       const sampleAssets = createSamplePortfolio(priceData);
-      const updatedAssets = updateAssetPrices(sampleAssets, priceData);
-      const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
-      const totalChange24h = updatedAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0);
+      const { updatedAssets, totalValue, initialInvestment } = await updateAssetPrices(sampleAssets, priceData);
 
       portfolio = new Portfolio({
         userId,
         assets: updatedAssets,
         totalValue,
-        totalChange24h,
+        initialInvestment,
+        totalChange24h: 0,
+        totalChange7d: 0,
+        totalChange30d: 0,
+        totalChangeAllTime: 0,
+        createdAt: new Date(),
+        lastUpdated: new Date()
       });
-      await portfolio.save();
-      console.log('New portfolio created with sample assets:', portfolio);
     } else {
-      //console.log('Updating existing portfolio with current prices');
-      const updatedAssets = updateAssetPrices(portfolio.assets, priceData);
-      const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
-      const totalChange24h = updatedAssets.reduce((sum, asset) => sum + (asset.value * asset.change24h / 100), 0);
+      console.log('Updating existing portfolio');
+      const { updatedAssets, totalValue, initialInvestment } = await updateAssetPrices(portfolio.assets, priceData);
+      
+      // Get historical prices and calculate changes
+      const historicalPrices = await getHistoricalPrices(userId, totalValue);
+      const changes = calculateChanges(historicalPrices);
 
       portfolio.assets = updatedAssets;
       portfolio.totalValue = totalValue;
-      portfolio.totalChange24h = totalChange24h;
+      portfolio.initialInvestment = portfolio.initialInvestment || initialInvestment;
+      portfolio.totalChange24h = changes.change24h;
+      portfolio.totalChange7d = changes.change7d;
+      portfolio.totalChange30d = changes.change30d;
+      portfolio.totalChangeAllTime = changes.changeAllTime;
       portfolio.lastUpdated = new Date();
-      await portfolio.save();
-      //console.log('Portfolio updated with current prices:', portfolio);
     }
 
+    await portfolio.save();
     res.json(portfolio);
   } catch (error) {
     console.error('Error in getPortfolio:', error);
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+const createSamplePortfolio = (priceData: CoinData[]): IAsset[] => {
+  return priceData
+    .slice(0, 5)
+    .map(coin => {
+      const amount = parseFloat((Math.random() * 10).toFixed(4));
+      const value = amount * coin.current_price;
+      
+      return {
+        name: coin.name,
+        symbol: coin.symbol,
+        amount,
+        value,
+        change24h: coin.price_change_percentage_24h || 0,
+        change7d: 0,
+        change30d: 0,
+        image: coin.image,
+        initialValue: value // Set initial value when creating new assets
+      };
+    });
 };
 
 export const updatePortfolio = async (req: UserRequest, res: Response) => {

@@ -1,5 +1,3 @@
-// frontend/src/services/CryptoPriceService.ts
-
 import axios from 'axios';
 import { BehaviorSubject, Subject } from 'rxjs';
 

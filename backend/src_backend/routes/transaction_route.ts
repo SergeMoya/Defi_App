@@ -1,5 +1,3 @@
-// backend/src_backend/routes/transaction_route.ts
-
 import express from 'express';
 import { getTransactions, addTransaction } from '../controllers/transactionController';
 import { authMiddleware } from '../middleware/auth';

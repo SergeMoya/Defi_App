@@ -1,5 +1,3 @@
-// backend/src_backend/cache.ts
-
 import NodeCache from 'node-cache';
 
 const cache = new NodeCache({
@@ -9,19 +7,19 @@ const cache = new NodeCache({
 });
 
 export const getCachedData = <T>(key: string): T | undefined => {
-  console.log(`[Cache] Attempting to get data for key: ${key}`);
+  //console.log(`[Cache] Attempting to get data for key: ${key}`);
   const data = cache.get<T>(key);
-  console.log(`[Cache] ${data ? 'Hit' : 'Miss'} for key: ${key}`);
+  //console.log(`[Cache] ${data ? 'Hit' : 'Miss'} for key: ${key}`);
   return data;
 };
 
 export const setCachedData = <T>(key: string, data: T, ttl: number = 30): void => {
-  console.log(`[Cache] Setting data for key: ${key}`);
-  cache.set(key, data, Math.floor(ttl)); // Ensure ttl is a number and floored
+  //console.log(`[Cache] Setting data for key: ${key}`);
+  cache.set(key, data, Math.floor(ttl)); 
 };
 
 export const clearCache = (): void => {
-  console.log('[Cache] Clearing all cache');
+  //console.log('[Cache] Clearing all cache');
   cache.flushAll();
 };
 
