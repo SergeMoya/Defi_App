@@ -123,10 +123,10 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, accountType 
             <img 
               className="h-16 w-auto mr-4 rounded-xl shadow-md border-2 border-gray-100 dark:border-gray-700" 
               src={logoImage} 
-              alt="Acare Dashboard" 
+              alt="Defi Dashboard" 
             />
             <span className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
-              Acare Dashboard
+              Defi Dashboard
             </span>
           </div>
           
@@ -166,10 +166,10 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, onLogout, accountType 
             <img 
               className="h-16 w-auto mr-4 rounded-xl shadow-md border-2 border-gray-100 dark:border-gray-700" 
               src={logoImage} 
-              alt="Acare Dashboard" 
+              alt="Dashboard" 
             />
             <span className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
-              Acare
+              Defi Dashboard
             </span>
           </div>
 

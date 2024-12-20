@@ -41,9 +41,11 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend }) => (
   >
     <h3 className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{title}</h3>
     <div className="flex items-baseline justify-between">
-      <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{value}%</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm md:text-base lg:text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis">{value}%</p>
+      </div>
       <span
-        className={`text-xs md:text-sm font-medium ${
+        className={`text-xs md:text-sm font-medium flex-shrink-0 ml-2 ${
           trend === 'up' ? 'text-green-600' : 'text-red-600'
         } flex items-center`}
       >
@@ -59,179 +61,178 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend }) => (
 );
 
 const PerformanceAnalytics: React.FC = () => {
-    const { isWalletConnected, isUsingDemoWallet } = useWallet();
-    const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
-    const [dateRange, setDateRange] = useState('6M');
-    const [showBenchmark, setShowBenchmark] = useState(true);
-    const [showArea, setShowArea] = useState(true);
-    const [showNormalizedData, setShowNormalizedData] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-  
-    const fetchPerformanceData = useCallback(async () => {
-      if (!isWalletConnected && !isUsingDemoWallet) {
-        return;
-      }
-  
-      setIsLoading(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-  
-        const response = await axios.get<PerformanceData[]>(`${API_BASE_URL}${PERFORMANCE_ENDPOINT}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setPerformanceData(response.data);
-      } catch (error) {
-        console.error('Error fetching performance data:', error);
-        setError('Failed to fetch performance data. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    }, [isWalletConnected, isUsingDemoWallet]);
-  
-    const handleUpdateData = async () => {
-      if (!isWalletConnected && !isUsingDemoWallet) {
-        return;
-      }
-  
-      setIsLoading(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-  
-        await axios.post(`${API_BASE_URL}${PERFORMANCE_UPDATE_ENDPOINT}`, {}, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        await fetchPerformanceData();
-      } catch (error) {
-        console.error('Error updating performance data:', error);
-        setError('Failed to update performance data. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    useEffect(() => {
-      if (isWalletConnected || isUsingDemoWallet) {
-        fetchPerformanceData();
-        const intervalId = setInterval(fetchPerformanceData, DATA_REFRESH_INTERVAL);
-        return () => clearInterval(intervalId);
-      } else {
-        setPerformanceData([]);
-        setIsLoading(false);
-      }
-    }, [isWalletConnected, isUsingDemoWallet, fetchPerformanceData]);
-  
-    const filteredData = useMemo(() => {
-      const months = dateRange === '1Y' ? 12 : dateRange === '6M' ? 6 : dateRange === '3M' ? 3 : 36;
-      const startDate = subMonths(new Date(), months);
-      return performanceData.filter((d) => isAfter(parseISO(d.date), startDate));
-    }, [performanceData, dateRange]);
+  const { isWalletConnected, isUsingDemoWallet } = useWallet();
+  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const [dateRange, setDateRange] = useState('6M');
+  const [showBenchmark, setShowBenchmark] = useState(true);
+  const [showArea, setShowArea] = useState(true);
+  const [showNormalizedData, setShowNormalizedData] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const fetchPerformanceData = useCallback(async () => {
+    if (!isWalletConnected && !isUsingDemoWallet) {
+      return;
+    }
 
-    const normalizedData: NormalizedPerformanceData[] = useMemo(() => {
-        if (filteredData.length === 0) return [];
-        const startValue = filteredData[0].totalValue;
-        return filteredData.map((item) => ({
-          ...item,
-          normalizedValue: (item.totalValue / startValue) * 100,
-        }));
-      }, [filteredData]);
-    
-      const calculatePerformanceMetrics = useCallback((data: PerformanceData[]) => {
-        if (data.length < 2) return { portfolioReturn: 0, benchmarkReturn: 0, alpha: 0, sharpeRatio: 0 };
-    
-        const startValue = data[0].totalValue;
-        const endValue = data[data.length - 1].totalValue;
-        const portfolioReturn = ((endValue - startValue) / startValue) * 100;
-    
-        const benchmarkReturn = 0;
-        const alpha = portfolioReturn - benchmarkReturn;
-    
-        const returns = data.slice(1).map((d, i) => (d.totalValue - data[i].totalValue) / data[i].totalValue);
-        const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-        const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
-        const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252);
-    
-        return { portfolioReturn, benchmarkReturn, alpha, sharpeRatio };
-      }, []);
-    
-      const { portfolioReturn, benchmarkReturn, alpha, sharpeRatio } = useMemo(
-        () => calculatePerformanceMetrics(filteredData),
-        [filteredData, calculatePerformanceMetrics]
-      );
-    
-      const handleBrushChange = useCallback((newRange: BrushStartEndIndex) => {
-        if (newRange && newRange.startIndex !== undefined && newRange.endIndex !== undefined && newRange.startIndex !== newRange.endIndex) {
-          const startDate = filteredData[newRange.startIndex].date;
-          const endDate = filteredData[newRange.endIndex].date;
-          console.log(`Custom range selected: ${startDate} to ${endDate}`);
-        }
-      }, [filteredData]);
-    
-      if (!isWalletConnected && !isUsingDemoWallet) {
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white dark:bg-gray-800 shadow-lg rounded-lg"
-          >
-            <div className="p-4 md:p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="flex flex-col justify-center items-center text-center max-w-lg mx-auto">
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-6">
-                    Performance Analytics
-                  </h2>
-                  <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
-                    Track and analyze your portfolio performance with detailed metrics and visualizations
-                  </p>
-                  <WalletPlaceholder 
-                    title="Connect Wallet to View Performance"
-                    message="Please connect your wallet or use demo wallet to view your portfolio performance analytics and track your returns."
-                  />
-                </div>
-                <div className="hidden lg:flex justify-center items-center">
-                  <img
-                    src={VisualData}
-                    alt="Performance Analytics"
-                    className="w-full max-w-md"
-                  />
-                </div>
-              </div>
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.get<PerformanceData[]>(`${API_BASE_URL}${PERFORMANCE_ENDPOINT}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setPerformanceData(response.data);
+    } catch (error) {
+      console.error('Error fetching performance data:', error);
+      setError('Failed to fetch performance data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isWalletConnected, isUsingDemoWallet]);
+
+  const handleUpdateData = async () => {
+    if (!isWalletConnected && !isUsingDemoWallet) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      await axios.post(`${API_BASE_URL}${PERFORMANCE_UPDATE_ENDPOINT}`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await fetchPerformanceData();
+    } catch (error) {
+      console.error('Error updating performance data:', error);
+      setError('Failed to update performance data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isWalletConnected || isUsingDemoWallet) {
+      fetchPerformanceData();
+      const intervalId = setInterval(fetchPerformanceData, DATA_REFRESH_INTERVAL);
+      return () => clearInterval(intervalId);
+    } else {
+      setPerformanceData([]);
+      setIsLoading(false);
+    }
+  }, [isWalletConnected, isUsingDemoWallet, fetchPerformanceData]);
+
+  const filteredData = useMemo(() => {
+    const months = dateRange === '1Y' ? 12 : dateRange === '6M' ? 6 : dateRange === '3M' ? 3 : 36;
+    const startDate = subMonths(new Date(), months);
+    return performanceData.filter((d) => isAfter(parseISO(d.date), startDate));
+  }, [performanceData, dateRange]);
+
+  const normalizedData: NormalizedPerformanceData[] = useMemo(() => {
+    if (filteredData.length === 0) return [];
+    const startValue = filteredData[0].totalValue;
+    return filteredData.map((item) => ({
+      ...item,
+      normalizedValue: (item.totalValue / startValue) * 100,
+    }));
+  }, [filteredData]);
+
+  const calculatePerformanceMetrics = useCallback((data: PerformanceData[]) => {
+    if (data.length < 2) return { portfolioReturn: 0, benchmarkReturn: 0, alpha: 0, sharpeRatio: 0 };
+
+    const startValue = data[0].totalValue;
+    const endValue = data[data.length - 1].totalValue;
+    const portfolioReturn = ((endValue - startValue) / startValue) * 100;
+
+    const benchmarkReturn = 0;
+    const alpha = portfolioReturn - benchmarkReturn;
+
+    const returns = data.slice(1).map((d, i) => (d.totalValue - data[i].totalValue) / data[i].totalValue);
+    const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length);
+    const sharpeRatio = (avgReturn / stdDev) * Math.sqrt(252);
+
+    return { portfolioReturn, benchmarkReturn, alpha, sharpeRatio };
+  }, []);
+
+  const { portfolioReturn, benchmarkReturn, alpha, sharpeRatio } = useMemo(
+    () => calculatePerformanceMetrics(filteredData),
+    [filteredData, calculatePerformanceMetrics]
+  );
+
+  const handleBrushChange = useCallback((newRange: BrushStartEndIndex) => {
+    if (newRange && newRange.startIndex !== undefined && newRange.endIndex !== undefined && newRange.startIndex !== newRange.endIndex) {
+      const startDate = filteredData[newRange.startIndex].date;
+      const endDate = filteredData[newRange.endIndex].date;
+      console.log(`Custom range selected: ${startDate} to ${endDate}`);
+    }
+  }, [filteredData]);
+
+  if (!isWalletConnected && !isUsingDemoWallet) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 shadow-lg rounded-lg"
+      >
+        <div className="p-4 md:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex flex-col justify-center items-center text-center max-w-lg mx-auto">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-6">
+                Performance Analytics
+              </h2>
+              <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+                Track and analyze your portfolio performance with detailed metrics and visualizations
+              </p>
+              <WalletPlaceholder
+                title="Connect Wallet to View Performance"
+                message="Please connect your wallet or use demo wallet to view your portfolio performance analytics and track your returns."
+              />
             </div>
-          </motion.div>
-        );
-      }
-    
-      if (isLoading && !performanceData.length) {
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 md:p-8"
-          >
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-8">Performance Analytics</h2>
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 md:h-10 md:w-10 border-b-2 border-indigo-600"></div>
+            <div className="hidden lg:flex justify-center items-center">
+              <img
+                src={VisualData}
+                alt="Performance Analytics"
+                className="w-full max-w-md"
+              />
             </div>
-          </motion.div>
-        );
-      }
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
-      const chartData = showNormalizedData ? normalizedData : filteredData;
+  if (isLoading && !performanceData.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 md:p-8"
+      >
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-8">Performance Analytics</h2>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 md:h-10 md:w-10 border-b-2 border-indigo-600"></div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const chartData = showNormalizedData ? normalizedData : filteredData;
 
   return (
     <motion.div
@@ -348,19 +349,19 @@ const PerformanceAnalytics: React.FC = () => {
         <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 300 : 400}>
           <LineChart
             data={chartData}
-            margin={window.innerWidth <= 768 
+            margin={window.innerWidth <= 768
               ? { top: 20, right: 10, left: -20, bottom: 20 }
               : { top: 20, right: 30, left: 20, bottom: 20 }
             }
           >
             <defs>
               <linearGradient id="colorPortfolio" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorBenchmark" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -378,7 +379,7 @@ const PerformanceAnalytics: React.FC = () => {
                 if (showNormalizedData) {
                   return `${value.toFixed(0)}%`;
                 }
-                
+
                 if (window.innerWidth <= 768) {
                   if (value >= 1000000000) {
                     return `${(value / 1000000000).toFixed(1)}B`;
@@ -453,11 +454,11 @@ const PerformanceAnalytics: React.FC = () => {
             {chartData.length > 0 && (
               <ReferenceLine
                 y={showNormalizedData ? 100 : chartData[0].totalValue}
-                label={{ 
-                  value: "Start", 
-                  position: 'insideLeft', 
-                  fill: '#e53e3e', 
-                  fontSize: window.innerWidth <= 768 ? 10 : 12 
+                label={{
+                  value: "Start",
+                  position: 'insideLeft',
+                  fill: '#e53e3e',
+                  fontSize: window.innerWidth <= 768 ? 10 : 12
                 }}
                 stroke="#e53e3e"
                 strokeDasharray="3 3"
