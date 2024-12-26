@@ -162,7 +162,7 @@ const Authentication: React.FC<AuthenticationProps> = ({ onAuthSuccess, onError 
           >
             <div className="text-center mb-8">
               <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                {isLogin ? 'Welcome Back' : 'Create Account'}
+                {isLogin ? 'Welcome' : 'Create Account'}
               </h2>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 {isLogin 
